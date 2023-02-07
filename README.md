@@ -1,2 +1,3 @@
 # ethabi-rs
-Ethereum solidity abi multi/lang code generate framework
+
+Multi-language code generator for ethereum solidity abi
