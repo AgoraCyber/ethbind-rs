@@ -7,7 +7,7 @@ use std::str::FromStr;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::error::AbiJsonError;
+use crate::error::AbiError;
 
 /// Hardhat generate artifact
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,13 +39,19 @@ pub struct Function {
     /// the function name
     pub name: String,
     /// An array of function's input params
-    pub inputs: Option<Vec<Parameter>>,
+    #[serde(default = "default_parameters")]
+    pub inputs: Vec<Parameter>,
     /// An array of function's output params
-    pub outputs: Option<Vec<Parameter>>,
+    #[serde(default = "default_parameters")]
+    pub outputs: Vec<Parameter>,
     /// a string with one of the following values: pure (specified to not read blockchain state),
     /// view (specified to not modify the blockchain state),
     /// nonpayable (function does not accept Ether - the default) and payable (function accepts Ether)
     pub state_mutability: StateMutability,
+}
+
+fn default_parameters() -> Vec<Parameter> {
+    vec![]
 }
 
 /// A structure type to represent `constructor` abi
@@ -54,8 +60,6 @@ pub struct Function {
 pub struct Constructor {
     /// An array of function's input params
     pub inputs: Vec<Parameter>,
-    /// An array of function's output params
-    pub outputs: Option<Vec<Parameter>>,
     /// a string with one of the following values: pure (specified to not read blockchain state),
     /// view (specified to not modify the blockchain state),
     /// nonpayable (function does not accept Ether - the default) and payable (function accepts Ether)
@@ -113,7 +117,7 @@ pub struct Error {
     pub inputs: Vec<Parameter>,
 }
 /// Handle Function/Event/Error 's input or output parameter type
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Parameter {
     /// The name of the parameter
     pub name: String,
@@ -124,7 +128,7 @@ pub struct Parameter {
 }
 
 /// Contract abi simple types enum
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SimpleType {
     Address,
@@ -140,7 +144,7 @@ pub enum SimpleType {
     Tuple,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// fixed-point decimal number of M bits, 8 <= M <= 256, M % 8 == 0, and 0 < N <= 80, which denotes the value v as v / (10 ** N).
 pub struct FixedMN {
     pub m: usize,
@@ -179,7 +183,7 @@ impl<'de> Deserialize<'de> for FixedMN {
             let n: usize = (&captures[3]).parse().map_err(serde::de::Error::custom)?;
 
             if m < 8 || m > 256 || m % 8 != 0 {
-                return Err(AbiJsonError::FixedMN(
+                return Err(AbiError::FixedMN(
                     data,
                     "M bits must meet the condition 0 < M <= 256, M % 8 == 0".to_string(),
                 ))
@@ -187,7 +191,7 @@ impl<'de> Deserialize<'de> for FixedMN {
             }
 
             if n > 80 {
-                return Err(AbiJsonError::FixedMN(
+                return Err(AbiError::FixedMN(
                     data,
                     "decimal numbers N must meet the condition 0 < N <= 80".to_string(),
                 ))
@@ -196,7 +200,7 @@ impl<'de> Deserialize<'de> for FixedMN {
 
             Ok(Self { signed, m, n })
         } else {
-            return Err(AbiJsonError::FixedMN(
+            return Err(AbiError::FixedMN(
                 data,
                 "{u}fixed<M>x<N>: fixed-point decimal number of M bits, 8 <= M <= 256, M % 8 == 0, and 0 < N <= 80"
                     .to_string(),
@@ -207,7 +211,7 @@ impl<'de> Deserialize<'de> for FixedMN {
 }
 
 /// integer type of M bits, 0 < M <= 256, M % 8 == 0. e.g. uint32, uint8
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IntegerM {
     pub signed: bool,
     pub m: usize,
@@ -243,7 +247,7 @@ impl<'de> Deserialize<'de> for IntegerM {
             let m: usize = (&captures[2]).parse().map_err(serde::de::Error::custom)?;
 
             if m < 8 || m > 256 || m % 8 != 0 {
-                return Err(AbiJsonError::IntegerM(
+                return Err(AbiError::IntegerM(
                     data,
                     "M bits must meet the condition 0 < M <= 256, M % 8 == 0".to_string(),
                 ))
@@ -252,7 +256,7 @@ impl<'de> Deserialize<'de> for IntegerM {
 
             Ok(Self { signed, m })
         } else {
-            return Err(AbiJsonError::FixedMN(
+            return Err(AbiError::FixedMN(
                 data,
                 "{u}int<M>: unsigned integer type of M bits, 0 < M <= 256, M % 8 == 0".to_string(),
             ))
@@ -261,7 +265,7 @@ impl<'de> Deserialize<'de> for IntegerM {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// binary type of M bytes, 0 < M <= 32
 pub struct BytesM {
     pub m: usize,
@@ -287,13 +291,13 @@ impl<'de> Deserialize<'de> for BytesM {
             let m: usize = (&data[5..]).parse().map_err(serde::de::Error::custom)?;
 
             if m > 32 {
-                return Err(AbiJsonError::BytesM(data, "0 < M <= 32".to_string()))
+                return Err(AbiError::BytesM(data, "0 < M <= 32".to_string()))
                     .map_err(serde::de::Error::custom);
             }
 
             Ok(Self { m })
         } else {
-            return Err(AbiJsonError::BytesM(
+            return Err(AbiError::BytesM(
                 data,
                 "bytes<M>: binary type of M bytes, 0 < M <= 32".to_string(),
             ))
@@ -302,7 +306,7 @@ impl<'de> Deserialize<'de> for BytesM {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Type {
     Simple(SimpleType),
 
@@ -380,11 +384,11 @@ impl<'de> Deserialize<'de> for Type {
             return Ok(Self::Simple(simple_type));
         }
 
-        return Err(AbiJsonError::UnknownType(data)).map_err(serde::de::Error::custom);
+        return Err(AbiError::UnknownType(data)).map_err(serde::de::Error::custom);
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// a fixed-length array of M elements, M >= 0, of the given type.
 pub struct ArrayM {
     pub element: Type,
@@ -425,7 +429,7 @@ impl<'de> Deserialize<'de> for ArrayM {
 
             return Ok(Self { element, m });
         } else {
-            return Err(AbiJsonError::ArrayM(
+            return Err(AbiError::ArrayM(
                 array_m,
                 "<type>[M]: a fixed-length array of M elements, M >= 0, of the given type"
                     .to_string(),
@@ -435,7 +439,7 @@ impl<'de> Deserialize<'de> for ArrayM {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// a variable-length array of elements of the given type
 pub struct Array {
     pub element: Type,
@@ -465,7 +469,7 @@ impl<'de> Deserialize<'de> for Array {
 
             return Ok(Self { element });
         } else {
-            return Err(AbiJsonError::Array(
+            return Err(AbiError::Array(
                 array_m,
                 "<type>[]: a variable-length array of elements of the given type.".to_string(),
             ))

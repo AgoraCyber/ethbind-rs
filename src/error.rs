@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum AbiJsonError {
+pub enum AbiError {
     #[error("Invalid fixed type declare {0}, {1}")]
     FixedMN(String, String),
 
