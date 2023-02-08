@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::json::{AbiField, Error, Event, Function, HardhatArtifact, Parameter};
+use crate::json::{
+    AbiField, BytesM, Error, Event, FixedMN, Function, HardhatArtifact, IntegerM, Parameter,
+    SimpleType,
+};
 
 /// Code generator context structure
 #[derive(Debug, Default)]
@@ -21,6 +24,11 @@ impl Context {
 pub trait Generator {
     type Constract: ConstractGenerator;
 
+    type TypeMapping: TypeMapping;
+
+    /// Return generator hold [`TypeMapping`] instance
+    fn type_mapping(&self) -> &Self::TypeMapping;
+
     /// Generate contract bind code
     fn generate_contract(&mut self, name: &str) -> anyhow::Result<Self::Constract>;
 
@@ -39,6 +47,22 @@ pub trait Generator {
         bytecode: &str,
         inputs: &[Parameter],
     ) -> anyhow::Result<()>;
+}
+
+pub trait TypeMapping {
+    fn simple(&self, t: &SimpleType) -> String;
+
+    fn bytes_m(&self, t: BytesM) -> String;
+
+    fn integer_m(&self, t: IntegerM) -> String;
+
+    fn fixed_m_n(&self, t: FixedMN) -> String;
+
+    fn array_m(&self, element: String, m: usize) -> String;
+
+    fn array(&self, element: String) -> String;
+
+    fn tuple(&self, tuple_name: String) -> String;
 }
 
 /// Target language contract generator trait
