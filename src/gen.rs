@@ -224,3 +224,5 @@ fn generate_tuple_type_declare(context: &mut Context, components: &Vec<Parameter
 
     format!("({})", els.join(","))
 }
+
+pub mod rust;
