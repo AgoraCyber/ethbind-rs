@@ -152,6 +152,15 @@ impl ToString for SimpleType {
     }
 }
 
+impl SimpleType {
+    pub fn is_tuple(&self) -> bool {
+        match self {
+            Self::Tuple => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// fixed-point decimal number of M bits, 8 <= M <= 256, M % 8 == 0, and 0 < N <= 80, which denotes the value v as v / (10 ** N).
 pub struct FixedMN {

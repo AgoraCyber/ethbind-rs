@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
-use crate::json::{
-    AbiField, Error, Event, FixedMN, Function, HardhatArtifact, IntegerM, Parameter, SimpleType,
+use crate::{
+    error::TypeMappingError,
+    json::{
+        AbiField, Error, Event, FixedMN, Function, HardhatArtifact, IntegerM, Parameter,
+        SimpleType, Type,
+    },
 };
 
 /// Code generator context structure
@@ -9,12 +13,73 @@ use crate::json::{
 pub struct Context {
     constract_name: String,
     tuples: HashMap<String, Vec<Parameter>>,
+    mapping_tuples: HashMap<String, String>,
 }
 
 impl Context {
-    fn reigster_tuple(&mut self, name: &str, tuple: &Vec<Parameter>) {
+    fn reigster_tuple(&mut self, name: &str, tuple: &[Parameter]) {
         if !self.tuples.contains_key(name) {
-            self.tuples.insert(name.to_string(), tuple.clone());
+            self.tuples.insert(name.to_string(), tuple.into());
+        }
+    }
+
+    fn register_mapping_tuple_type(&mut self, name: &str, mapping_type_path: String) {
+        if !self.mapping_tuples.contains_key(name) {
+            self.mapping_tuples
+                .insert(name.to_string(), mapping_type_path);
+        }
+    }
+
+    /// Get generating contract name.
+    pub fn contract_name(&self) -> &str {
+        &self.constract_name
+    }
+
+    pub fn mapping_parameter<M: TypeMapping>(
+        &mut self,
+        type_mapping: &M,
+        parameter: &Parameter,
+    ) -> String {
+        static NULL_TUPLE: Vec<Parameter> = vec![];
+        self.get_mapping_type(
+            type_mapping,
+            parameter.r#type.clone(),
+            &parameter.components.as_ref().unwrap_or(&NULL_TUPLE),
+        )
+    }
+
+    fn get_mapping_type<M: TypeMapping>(
+        &mut self,
+        type_mapping: &M,
+        r#type: Type,
+        tuple: &[Parameter],
+    ) -> String {
+        match r#type {
+            Type::Simple(simple) if simple.is_tuple() => {
+                let key = generate_tuple_type_declare(self, tuple);
+
+                let mapping_path = self
+                    .mapping_tuples
+                    .get(&key)
+                    .ok_or(TypeMappingError::NotFound(key))
+                    .unwrap();
+
+                mapping_path.to_owned()
+            }
+            Type::Simple(simple) => type_mapping.simple(&simple),
+            Type::Array(array) => {
+                type_mapping.array(&self.get_mapping_type(type_mapping, array.element, &[]))
+            }
+            Type::ArrayM(array_m) => type_mapping.array_m(
+                &self.get_mapping_type(type_mapping, array_m.element, &[]),
+                array_m.m,
+            ),
+
+            Type::BytesM(bytes_m) => type_mapping.bytes_m(bytes_m.m),
+
+            Type::FixedMN(fixed_m_n) => type_mapping.fixed_m_n(fixed_m_n),
+
+            Type::IntegerM(int_m) => type_mapping.integer_m(int_m),
         }
     }
 }
@@ -27,29 +92,32 @@ pub trait Generator {
     fn type_mapping(&self) -> &Self::TypeMapping;
 
     /// Generate contract scope ,tuple/structure types
+    fn start_generate_contract(&mut self, ctx: &mut Context) -> anyhow::Result<()>;
+
+    /// Generate contract scope ,tuple/structure types
     fn generate_tuple(
         &mut self,
-        ctx: &Context,
+        ctx: &mut Context,
         name: &str,
         tuple: &[Parameter],
-    ) -> anyhow::Result<()>;
+    ) -> anyhow::Result<String>;
 
     /// Call this function to generate deploy method/function
     fn generate_deploy(
         &mut self,
-        ctx: &Context,
+        ctx: &mut Context,
         bytecode: &str,
         inputs: &[Parameter],
     ) -> anyhow::Result<()>;
 
     /// Generate constract interface function bind code
-    fn generate_function(&mut self, ctx: &Context, function: &Function) -> anyhow::Result<()>;
+    fn generate_function(&mut self, ctx: &mut Context, function: &Function) -> anyhow::Result<()>;
 
     /// Generate constract interface event bind code
-    fn generate_event(&mut self, ctx: &Context, event: &Event) -> anyhow::Result<()>;
+    fn generate_event(&mut self, ctx: &mut Context, event: &Event) -> anyhow::Result<()>;
 
     /// Generate constract interface error bind code
-    fn generate_error(&mut self, ctx: &Context, event: &Error) -> anyhow::Result<()>;
+    fn generate_error(&mut self, ctx: &mut Context, event: &Error) -> anyhow::Result<()>;
 }
 
 pub trait TypeMapping {
@@ -64,8 +132,6 @@ pub trait TypeMapping {
     fn array_m(&self, element: &str, m: usize) -> String;
 
     fn array(&self, element: &str) -> String;
-
-    fn tuple(&self, tuple_name: &str) -> String;
 }
 
 /// The trait to support generate target program language code
@@ -76,7 +142,11 @@ trait Generate {
     /// Using providing `context` object to generate projection codes.
     ///
     /// Usually can invoke [`Self::create_context`](Generate::create_context) to generate valid context instance.
-    fn generate_with_context<G>(&self, context: &Context, generator: &mut G) -> anyhow::Result<()>
+    fn generate_with_context<G>(
+        &self,
+        context: &mut Context,
+        generator: &mut G,
+    ) -> anyhow::Result<()>
     where
         G: Generator;
 
@@ -91,14 +161,18 @@ trait Generate {
     where
         G: Generator,
     {
-        let context = self.create_context(constract_name)?;
+        let mut context = self.create_context(constract_name)?;
 
-        self.generate_with_context(&context, generator)
+        self.generate_with_context(&mut context, generator)
     }
 }
 
 impl Generate for HardhatArtifact {
-    fn generate_with_context<G>(&self, context: &Context, generator: &mut G) -> anyhow::Result<()>
+    fn generate_with_context<G>(
+        &self,
+        context: &mut Context,
+        generator: &mut G,
+    ) -> anyhow::Result<()>
     where
         G: Generator,
     {
@@ -113,7 +187,7 @@ impl Generate for HardhatArtifact {
         }
 
         // Generate deploy method/function code binding
-        generator.generate_deploy(&context, &self.bytecode, inputs)?;
+        generator.generate_deploy(context, &self.bytecode, inputs)?;
 
         // Generate contract struct/class code binding
         self.abi.generate_with_context(context, generator)?;
@@ -155,10 +229,24 @@ impl Generate for Vec<AbiField> {
         Ok(context)
     }
 
-    fn generate_with_context<G>(&self, context: &Context, generator: &mut G) -> anyhow::Result<()>
+    fn generate_with_context<G>(
+        &self,
+        context: &mut Context,
+        generator: &mut G,
+    ) -> anyhow::Result<()>
     where
         G: Generator,
     {
+        generator.start_generate_contract(context)?;
+
+        // Generate contract references tuples
+        let tuples = context.tuples.clone();
+        for (k, v) in tuples.iter() {
+            let mapping_type_path = generator.generate_tuple(context, k, v)?;
+
+            context.register_mapping_tuple_type(k, mapping_type_path);
+        }
+
         for field in self {
             match field {
                 AbiField::Function(function) => {
@@ -178,11 +266,6 @@ impl Generate for Vec<AbiField> {
             }
         }
 
-        // Generate contract references tuples
-        for (k, v) in context.tuples.iter() {
-            generator.generate_tuple(context, k, v)?;
-        }
-
         Ok(())
     }
 }
@@ -198,7 +281,7 @@ fn handle_input_output_params(context: &mut Context, parms: &Vec<Parameter>) {
     }
 }
 
-fn generate_tuple_type_declare(context: &mut Context, components: &Vec<Parameter>) -> String {
+fn generate_tuple_type_declare(context: &mut Context, components: &[Parameter]) -> String {
     let mut els = vec![];
 
     for parm in components {

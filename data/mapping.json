@@ -7,5 +7,11 @@
   "int_m": "Int<true,$m>",
   "uint_m": "Int<false,$m>",
   "address": "ethers_rs::Address",
-  "tuple": "$name"
+  "tuple": "$name",
+  "rt_to_encoding_param": "$param.to_encodable()",
+  "rt_error": "anyhow::Error",
+  "rt_context": "Client",
+  "rt_ops": "ClientOps",
+  "rt_tx_receipt": "TransactionReceipt",
+  "rt_encode_input": "encode_inputs($inputs)"
 }

@@ -20,11 +20,12 @@ pub struct SerdeTypeMapping {
 }
 
 impl SerdeTypeMapping {
-    fn get_mapping(&self, name: &str, args: &[(&str, &str)]) -> anyhow::Result<String> {
+    /// Get mapping rust types string by parameter `name`
+    pub fn get_mapping(&self, name: &str, args: &[(&str, &str)]) -> anyhow::Result<String> {
         let mut fmt_str = self
             .types_mapping
             .get(name)
-            .ok_or(TypeMappingError::NotFound("array".to_owned()))
+            .ok_or(TypeMappingError::NotFound(name.to_owned()))
             .unwrap()
             .clone();
 
@@ -90,10 +91,6 @@ impl TypeMapping for SerdeTypeMapping {
     fn simple(&self, t: &crate::json::SimpleType) -> String {
         self.get_mapping(&t.to_string(), &[]).unwrap()
     }
-
-    fn tuple(&self, tuple_name: &str) -> String {
-        self.get_mapping("tuple", &[("$name", tuple_name)]).unwrap()
-    }
 }
 
 #[cfg(test)]
@@ -153,7 +150,5 @@ mod tests {
         );
 
         assert_eq!(mapping.simple(&SimpleType::Address), "ethers_rs::Address");
-
-        assert_eq!(mapping.tuple("lock::Data"), "lock::Data");
     }
 }

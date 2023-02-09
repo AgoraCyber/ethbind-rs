@@ -4,7 +4,7 @@ ethbind-rs is a ethereum contract binding code generation framework for arbitrar
 
 ## Generator
 
-The binding processor generates arbitrary target code by calling the corresponding code generator,The code generator is a rust structure that implements [`Generator`](src/gen.rs) trait.
+The binding processor generates arbitrary programming languages codes by calling the corresponding `generator`,The code generator is a rust structure that implements [`Generator`](src/gen.rs) trait.
 
 So far, the only official generator is the `rust` bind code [`Generator`](src/gen/rust.rs), you can easily use this generator in your Rust code in two ways:
 
