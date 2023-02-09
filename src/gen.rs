@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
 use crate::json::{
-    AbiField, BytesM, Error, Event, FixedMN, Function, HardhatArtifact, IntegerM, Parameter,
-    SimpleType,
+    AbiField, Error, Event, FixedMN, Function, HardhatArtifact, IntegerM, Parameter, SimpleType,
 };
 
 /// Code generator context structure
@@ -22,15 +21,10 @@ impl Context {
 
 /// Target language root generator trait
 pub trait Generator {
-    type Constract: ConstractGenerator;
-
     type TypeMapping: TypeMapping;
 
     /// Return generator hold [`TypeMapping`] instance
     fn type_mapping(&self) -> &Self::TypeMapping;
-
-    /// Generate contract bind code
-    fn generate_contract(&mut self, name: &str) -> anyhow::Result<Self::Constract>;
 
     /// Generate contract scope ,tuple/structure types
     fn generate_tuple(
@@ -47,26 +41,7 @@ pub trait Generator {
         bytecode: &str,
         inputs: &[Parameter],
     ) -> anyhow::Result<()>;
-}
 
-pub trait TypeMapping {
-    fn simple(&self, t: &SimpleType) -> String;
-
-    fn bytes_m(&self, t: BytesM) -> String;
-
-    fn integer_m(&self, t: IntegerM) -> String;
-
-    fn fixed_m_n(&self, t: FixedMN) -> String;
-
-    fn array_m(&self, element: String, m: usize) -> String;
-
-    fn array(&self, element: String) -> String;
-
-    fn tuple(&self, tuple_name: String) -> String;
-}
-
-/// Target language contract generator trait
-pub trait ConstractGenerator {
     /// Generate constract interface function bind code
     fn generate_function(&mut self, ctx: &Context, function: &Function) -> anyhow::Result<()>;
 
@@ -75,6 +50,22 @@ pub trait ConstractGenerator {
 
     /// Generate constract interface error bind code
     fn generate_error(&mut self, ctx: &Context, event: &Error) -> anyhow::Result<()>;
+}
+
+pub trait TypeMapping {
+    fn simple(&self, t: &SimpleType) -> String;
+
+    fn bytes_m(&self, m: usize) -> String;
+
+    fn integer_m(&self, t: IntegerM) -> String;
+
+    fn fixed_m_n(&self, t: FixedMN) -> String;
+
+    fn array_m(&self, element: &str, m: usize) -> String;
+
+    fn array(&self, element: &str) -> String;
+
+    fn tuple(&self, tuple_name: &str) -> String;
 }
 
 /// The trait to support generate target program language code
@@ -168,18 +159,16 @@ impl Generate for Vec<AbiField> {
     where
         G: Generator,
     {
-        let mut contract = generator.generate_contract(&context.constract_name)?;
-
         for field in self {
             match field {
                 AbiField::Function(function) => {
-                    contract.generate_function(context, function)?;
+                    generator.generate_function(context, function)?;
                 }
                 AbiField::Event(event) => {
-                    contract.generate_event(context, event)?;
+                    generator.generate_event(context, event)?;
                 }
                 AbiField::Error(error) => {
-                    contract.generate_error(context, error)?;
+                    generator.generate_error(context, error)?;
                 }
                 _ => {
                     // Skip generate codes for constructor/receive/fallback.
@@ -225,4 +214,5 @@ fn generate_tuple_type_declare(context: &mut Context, components: &Vec<Parameter
     format!("({})", els.join(","))
 }
 
+pub mod mapping;
 pub mod rust;

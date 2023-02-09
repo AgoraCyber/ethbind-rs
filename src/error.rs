@@ -23,3 +23,12 @@ pub enum AbiError {
     #[error("Invalid Type declare {0}")]
     UnknownType(String),
 }
+
+#[derive(Debug, Error)]
+pub enum TypeMappingError {
+    #[error("Type mapping not found for {0}")]
+    NotFound(String),
+
+    #[error("Serde type mapping parsing error for type {0}, valid wildcards: {1}")]
+    Serde(String, String),
+}

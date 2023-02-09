@@ -144,6 +144,14 @@ pub enum SimpleType {
     Tuple,
 }
 
+impl ToString for SimpleType {
+    fn to_string(&self) -> String {
+        let data = serde_json::to_string(self).unwrap();
+
+        data[1..data.len() - 1].to_string()
+    }
+}
+
 #[derive(Debug, Clone)]
 /// fixed-point decimal number of M bits, 8 <= M <= 256, M % 8 == 0, and 0 < N <= 80, which denotes the value v as v / (10 ** N).
 pub struct FixedMN {

@@ -10,7 +10,7 @@ So far, the only official generator is the `rust` bind code [`Generator`](src/ge
 
 ### via proc-macro
 
-Using the builtin [`proc-macro`](https://doc.rust-lang.org/reference/procedural-macros.html) contract!($name,$abi_file_path) to directly define contract bind structure and invoke methods in your src rust code, e.g:
+Using the builtin [`proc-macro`](https://doc.rust-lang.org/reference/procedural-macros.html) contract!($name,$abi_file_path) to directly derive contract bind interface in your rust code, e.g:
 
 ```rust
 contract!(Lock,include_str!("xxx/Lock.json"));
