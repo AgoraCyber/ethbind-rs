@@ -105,7 +105,7 @@ impl RustBinding {
                 }
                 _ => {
                     let rt_to_encoding_param: TokenStream = self.get_mapping_token_stream(
-                        "rt_to_encoding_param",
+                        "rt_to_encodable_param",
                         &[("$param", &variable_name)],
                     )?;
 
@@ -151,7 +151,7 @@ impl RustBinding {
                 }
                 _ => {
                     let rt_to_encoding_param: TokenStream = self.get_mapping_token_stream(
-                        "rt_to_encoding_param",
+                        "rt_to_encodable_param",
                         &[("$param", &new_path)],
                     )?;
 
@@ -161,7 +161,7 @@ impl RustBinding {
         }
 
         self.get_mapping_token_stream(
-            "rt_to_encoding_param",
+            "rt_to_encodable_param",
             &[("$param", &quote!(vec![#(#to_token_clauses,)*]).to_string())],
         )
     }

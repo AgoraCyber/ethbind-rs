@@ -8,10 +8,12 @@
   "uint_m": "Int<false,$m>",
   "address": "ethers_rs::Address",
   "tuple": "$name",
-  "rt_to_encoding_param": "$param.to_encodable()",
+  "rt_to_encodable_param": "$param.to_encodable()",
+  "rt_from_decodable_param": "$type::from_decodable($param)",
   "rt_error": "anyhow::Error",
   "rt_context": "Client",
   "rt_ops": "ClientOps",
   "rt_tx_receipt": "TransactionReceipt",
-  "rt_encode_input": "encode_inputs($inputs)"
+  "rt_encode_input": "encode_inputs($inputs)",
+  "rt_decode_output": "decode_outputs($inputs)"
 }
