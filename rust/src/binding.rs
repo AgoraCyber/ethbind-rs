@@ -140,3 +140,6 @@ pub use encodable::*;
 
 mod decodable;
 pub use decodable::*;
+
+mod tuple;
+pub use tuple::*;

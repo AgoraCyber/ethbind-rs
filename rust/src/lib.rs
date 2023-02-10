@@ -28,7 +28,7 @@ mod tests {
             .expect("Load types mapping data");
 
         let codes = BindingBuilder::new(RustBinding::new(types_mapping))
-            .bind_hardhat("test", include_str!("../../data/abi.json"))
+            .bind_hardhat(include_str!("../../data/abi.json"))
             .finalize()
             .expect("Generate codes")
             .to_string()

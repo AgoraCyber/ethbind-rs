@@ -13,15 +13,20 @@ pub trait Generator {
     /// Generate contract scope ,tuple/structure types
     fn begin<C: Context>(&mut self, ctx: &mut C, contract_name: &str) -> anyhow::Result<()>;
 
-    fn end<C: Context>(&mut self, ctx: &mut C) -> anyhow::Result<()>;
-
-    /// Generate contract scope ,tuple/structure types
-    fn generate_tuple<C: Context>(
+    fn mapping_tuple<C: Context>(
         &mut self,
         ctx: &mut C,
         name: &str,
         tuple: &[Parameter],
     ) -> anyhow::Result<String>;
+
+    /// Generate contract scope ,tuple/structure types
+    fn generate_tuple<C: Context>(
+        &mut self,
+        ctx: &mut C,
+        r_type: &str,
+        tuple: &[Parameter],
+    ) -> anyhow::Result<()>;
 
     /// Call this function to generate deploy method/function
     fn generate_deploy<C: Context>(
@@ -50,12 +55,7 @@ pub trait Generator {
 /// This trait is used by [`Executor`] method [`generate`](crate::Executor::generate)
 pub trait Generate {
     /// Generate target codes by parameter `context` and `generator`
-    fn generate<C, G>(
-        &self,
-        context: &mut C,
-        generator: &mut G,
-        contract_name: &str,
-    ) -> anyhow::Result<()>
+    fn generate<C, G>(&self, context: &mut C, generator: &mut G) -> anyhow::Result<()>
     where
         C: Context,
         G: Generator;
@@ -70,12 +70,7 @@ pub trait Generate {
 }
 
 impl Generate for HardhatArtifact {
-    fn generate<C, G>(
-        &self,
-        context: &mut C,
-        generator: &mut G,
-        contract_name: &str,
-    ) -> anyhow::Result<()>
+    fn generate<C, G>(&self, context: &mut C, generator: &mut G) -> anyhow::Result<()>
     where
         C: Context,
         G: Generator,
@@ -91,7 +86,7 @@ impl Generate for HardhatArtifact {
         }
 
         // Generate contract struct/class code binding
-        self.abi.generate(context, generator, contract_name)?;
+        self.abi.generate(context, generator)?;
 
         // Generate deploy method/function code binding
         generator.generate_deploy(context, &self.bytecode, inputs)?;
@@ -108,18 +103,11 @@ impl Generate for HardhatArtifact {
 }
 
 impl Generate for Vec<AbiField> {
-    fn generate<C, G>(
-        &self,
-        context: &mut C,
-        generator: &mut G,
-        contract_name: &str,
-    ) -> anyhow::Result<()>
+    fn generate<C, G>(&self, context: &mut C, generator: &mut G) -> anyhow::Result<()>
     where
         C: Context,
         G: Generator,
     {
-        generator.begin(context, contract_name)?;
-
         for field in self {
             match field {
                 AbiField::Function(function) => {
@@ -149,21 +137,29 @@ impl Generate for Vec<AbiField> {
         for field in self {
             match field {
                 AbiField::Constructor(constructor) => {
-                    context.register_tuple(constructor.inputs.as_ref());
+                    register_tuples(context, constructor.inputs.as_ref());
                 }
                 AbiField::Function(function) => {
-                    context.register_tuple(function.inputs.as_ref());
-                    context.register_tuple(function.outputs.as_ref());
+                    register_tuples(context, function.inputs.as_ref());
+                    register_tuples(context, function.outputs.as_ref());
                 }
 
                 AbiField::Event(event) => {
-                    context.register_tuple(event.inputs.as_ref());
+                    register_tuples(context, event.inputs.as_ref());
                 }
                 AbiField::Error(error) => {
-                    context.register_tuple(error.inputs.as_ref());
+                    register_tuples(context, error.inputs.as_ref());
                 }
                 _ => {}
             }
+        }
+    }
+}
+
+fn register_tuples<C: Context>(context: &mut C, params: &[Parameter]) {
+    for param in params {
+        if param.components.is_some() {
+            context.register_tuple(param);
         }
     }
 }

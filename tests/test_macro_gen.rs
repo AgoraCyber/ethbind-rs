@@ -80,12 +80,12 @@ impl<const SIGN: bool, const M: usize, const N: usize> Fixed<SIGN, M, N> {
 fn encode_inputs(inputs: Vec<Encodable>) -> anyhow::Result<Vec<u8>> {
     Ok(vec![])
 }
-
-contract!(Test, "tests/mapping.json", "tests/abi.json", hardhat);
+/// The contract name is automatically detected when loading hardhat artifact
+contract!("tests/mapping.json", "tests/abi.json");
 
 #[test]
 fn test_contract_event() {
-    let event = Test::event_decodable(TestEvents::Delist);
+    let event = PersonalWallet::event_decodable(PersonalWalletEvents::Delist);
 
     assert_eq!(
         event.0,
@@ -99,7 +99,7 @@ fn test_contract_event() {
 
 #[test]
 fn test_contract_error() {
-    let event = Test::error_decodable(TestErrors::DelistError);
+    let event = PersonalWallet::error_decodable(PersonalWalletErrors::DelistError);
 
     assert_eq!(
         event.0,

@@ -101,6 +101,12 @@ impl ContractBinding {
             .map(|(ident, _)| quote!(#ident))
             .collect::<Vec<_>>();
 
+        let tuple_token_streams = self
+            .tuple_token_streams
+            .iter()
+            .map(|(_, s)| s)
+            .collect::<Vec<_>>();
+
         quote! {
             pub struct #ident(#rt_context);
 
@@ -127,6 +133,8 @@ impl ContractBinding {
             pub enum #event_enum_ident {
                 #(#event_enum_items,)*
             }
+
+            #(#tuple_token_streams)*
         }
     }
 }

@@ -118,6 +118,7 @@ pub struct Error {
 }
 /// Handle Function/Event/Error 's input or output parameter type
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Parameter {
     /// The name of the parameter
     pub name: String,
@@ -128,6 +129,8 @@ pub struct Parameter {
     /// This field is only meaningful for `Event` or `Error`
     #[serde(default = "default_indexed")]
     pub indexed: bool,
+    /// Hardhat extension field
+    pub internal_type: Option<String>,
 }
 
 fn default_indexed() -> bool {

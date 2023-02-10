@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
 
+use sha3::Keccak256;
+
 use crate::{
     error::TypeMappingError,
     json::{AbiField, HardhatArtifact, Parameter, Type},
@@ -10,7 +12,7 @@ pub trait Context {
     /// Register new tuple type to context instance
     ///
     /// Returns tuple context scope unique name.
-    fn register_tuple(&mut self, tuple: &[Parameter]) -> String;
+    fn register_tuple(&mut self, tuple: &Parameter) -> String;
 
     /// Try register tuple into context, if exists returns false.
     fn reigster_tuple_mapping(&mut self, name: &str, to_type_path: String) -> bool;
@@ -39,14 +41,10 @@ impl Context for Executor {
         parameter: &Parameter,
     ) -> String {
         static NULL_TUPLE: Vec<Parameter> = vec![];
-        self.mapping_type(
-            type_mapping,
-            parameter.r#type.clone(),
-            &parameter.components.as_ref().unwrap_or(&NULL_TUPLE),
-        )
+        self.mapping_type(type_mapping, parameter)
     }
 
-    fn register_tuple(&mut self, tuple: &[Parameter]) -> String {
+    fn register_tuple(&mut self, tuple: &Parameter) -> String {
         self.tuple_name(tuple)
     }
 
@@ -62,12 +60,17 @@ impl Context for Executor {
 
 impl Executor {
     /// Generate tuple context scope unique name
-    fn tuple_name(&mut self, tuple: &[Parameter]) -> String {
+    fn tuple_name(&mut self, param: &Parameter) -> String {
+        let tuple = param
+            .components
+            .as_ref()
+            .expect("Input param isn't a tuple type");
+
         let mut els = vec![];
 
         for parm in tuple {
-            if let Some(child_components) = &parm.components {
-                let el = self.tuple_name(child_components);
+            if parm.components.is_some() {
+                let el = self.tuple_name(&parm);
 
                 els.push(el);
             }
@@ -75,8 +78,20 @@ impl Executor {
 
         let key = format!("({})", els.join(","));
 
+        use sha3::Digest;
+
+        let key = if let Some(internal_type) = param.internal_type.as_ref() {
+            internal_type.to_owned()
+        } else {
+            format!(
+                "{:x}",
+                Keccak256::new().chain_update(key.as_bytes()).finalize()
+            )[0..8]
+                .to_owned()
+        };
+
         // cascade register tuple
-        self.add_tuple(&key, tuple);
+        self.add_tuple(&key, &tuple);
 
         key
     }
@@ -89,15 +104,10 @@ impl Executor {
     }
 
     /// Mapping abi json type to target language runtime type
-    fn mapping_type<TM: TypeMapping>(
-        &mut self,
-        type_mapping: &TM,
-        r#type: Type,
-        tuple: &[Parameter],
-    ) -> String {
-        match r#type {
+    fn mapping_type<TM: TypeMapping>(&mut self, type_mapping: &TM, param: &Parameter) -> String {
+        match &param.r#type {
             Type::Simple(simple) if simple.is_tuple() => {
-                let key = self.tuple_name(tuple);
+                let key = self.tuple_name(param);
 
                 let mapping_path = self
                     .mapping_tuples
@@ -109,12 +119,44 @@ impl Executor {
             }
             Type::Simple(simple) => type_mapping.simple(&simple),
             Type::Array(array) => {
-                type_mapping.array(&self.mapping_type(type_mapping, array.element, &[]))
+                let internal_type = param
+                    .internal_type
+                    .clone()
+                    .map(|v| v.trim_end_matches("[]").to_owned());
+
+                type_mapping.array(&self.mapping_type(
+                    type_mapping,
+                    &Parameter {
+                        name: param.name.clone(),
+                        r#type: array.element.clone(),
+                        components: param.components.clone(),
+                        indexed: false,
+                        internal_type,
+                    },
+                ))
             }
-            Type::ArrayM(array_m) => type_mapping.array_m(
-                &self.mapping_type(type_mapping, array_m.element, &[]),
-                array_m.m,
-            ),
+            Type::ArrayM(array_m) => {
+                let suffix = format!("[{}]", array_m.m);
+
+                let internal_type = param
+                    .internal_type
+                    .clone()
+                    .map(|v| v.trim_end_matches(&suffix).to_owned());
+
+                type_mapping.array_m(
+                    &self.mapping_type(
+                        type_mapping,
+                        &Parameter {
+                            name: param.name.clone(),
+                            r#type: array_m.element.clone(),
+                            components: param.components.clone(),
+                            indexed: false,
+                            internal_type,
+                        },
+                    ),
+                    array_m.m,
+                )
+            }
 
             Type::BytesM(bytes_m) => type_mapping.bytes_m(bytes_m.m),
 
@@ -140,12 +182,31 @@ impl Executor {
         contract: &C,
         register_tuples: bool,
     ) -> anyhow::Result<()> {
+        self.tuples.clear();
+        self.mapping_tuples.clear();
+
+        generator.begin(self, contract_name)?;
+
+        // register contract tuples and generate tuples
         if register_tuples {
-            // register contract tuples
             contract.register_tuples(self);
+
+            let tuples = self.tuples.clone();
+
+            for (name, tuple) in &tuples {
+                let path = generator.mapping_tuple(self, &name, &tuple)?;
+
+                self.reigster_tuple_mapping(&name, path);
+            }
+
+            for (name, path) in self.mapping_tuples.clone() {
+                let tuple = tuples.get(&name).unwrap();
+
+                generator.generate_tuple(self, &path, tuple)?;
+            }
         }
 
-        Ok(contract.generate(self, generator, contract_name)?)
+        Ok(contract.generate(self, generator)?)
     }
 }
 
@@ -192,17 +253,11 @@ impl<G: Generator> BindingBuilder<G> {
     }
 
     /// Generate binding codes with hardhat artifact data
-    pub fn bind_hardhat<C: AsRef<str> + 'static, CN: AsRef<str>>(
-        mut self,
-        contract_name: CN,
-        contract: C,
-    ) -> Self {
-        let contract_name = contract_name.as_ref().to_string();
-
+    pub fn bind_hardhat<C: AsRef<str> + 'static>(mut self, contract: C) -> Self {
         self.builders.push(Box::new(move |c, g| {
             let fields: HardhatArtifact = serde_json::from_str(contract.as_ref())?;
 
-            c.generate_one(g, &contract_name, &fields, true)?;
+            c.generate_one(g, &fields.contract_name, &fields, true)?;
 
             Ok(())
         }));
@@ -234,21 +289,15 @@ impl<G: Generator> BindingBuilder<G> {
     }
 
     /// Generate binding codes with hardhat artifact file path
-    pub fn bind_hardhat_file<P: Into<PathBuf>, CN: AsRef<str>>(
-        mut self,
-        contract_name: CN,
-        path: P,
-    ) -> Self {
+    pub fn bind_hardhat_file<P: Into<PathBuf>>(mut self, path: P) -> Self {
         let path: PathBuf = path.into();
-
-        let contract_name = contract_name.as_ref().to_string();
 
         self.builders.push(Box::new(move |c, g| {
             let contract = read_to_string(&path)?;
 
             let fields: HardhatArtifact = serde_json::from_str(contract.as_ref())?;
 
-            c.generate_one(g, &contract_name, &fields, true)?;
+            c.generate_one(g, &fields.contract_name, &fields, true)?;
 
             Ok(())
         }));

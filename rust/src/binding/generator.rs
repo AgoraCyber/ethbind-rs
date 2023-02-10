@@ -1,7 +1,7 @@
 use ethbind_core::{Context, Generator, SerdeTypeMapping};
 use heck::ToUpperCamelCase;
 use proc_macro2::{Ident, Span};
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::{contract::ContractBinding, RustBinding};
 
@@ -14,10 +14,6 @@ impl Generator for RustBinding {
 
         self.contracts.push(ContractBinding::new(contract_ident));
 
-        Ok(())
-    }
-
-    fn end<C: Context>(&mut self, ctx: &mut C) -> anyhow::Result<()> {
         Ok(())
     }
 
@@ -125,11 +121,43 @@ impl Generator for RustBinding {
 
     fn generate_tuple<C: Context>(
         &mut self,
+        context: &mut C,
+        r_type: &str,
+        tuple: &[ethbind_core::json::Parameter],
+    ) -> anyhow::Result<()> {
+        log::debug!("gen tuple {}", r_type);
+        let tuple_ident = format_ident!("{}", r_type);
+
+        let tuple_fields_token_stream =
+            self.to_tuple_fields_token_stream(context, "tuple", tuple)?;
+
+        self.add_tuple_stream(
+            tuple_ident.clone(),
+            quote! {
+                pub struct #tuple_ident {
+                    #tuple_fields_token_stream
+                }
+            },
+        );
+
+        Ok(())
+    }
+
+    fn mapping_tuple<C: Context>(
+        &mut self,
         ctx: &mut C,
         name: &str,
         tuple: &[ethbind_core::json::Parameter],
     ) -> anyhow::Result<String> {
-        Ok("".to_string())
+        // handle hardhat internal type
+
+        if name.starts_with("struct ") {
+            let name = name[7..].replace(".", "");
+
+            Ok(format!("{}{}", self.contract_name(), name))
+        } else {
+            Ok(format!("{}Tuple{}", self.contract_name(), name))
+        }
     }
 
     fn type_mapping(&self) -> &Self::TypeMapping {

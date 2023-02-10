@@ -8,17 +8,18 @@ use quote::quote;
 use syn::{parse::Parse, parse_macro_input, LitStr, Token};
 
 struct Contract {
-    pub contract_name: String,
+    pub contract_name: Option<String>,
     pub type_mapping: String,
     pub abi_data: String,
-    pub is_hardhat: bool,
 }
 
 impl Parse for Contract {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let contract_name: Ident = input.parse()?;
+        let contract_name: Option<Ident> = input.parse()?;
 
-        input.parse::<Token!(,)>()?;
+        if contract_name.is_some() {
+            input.parse::<Token!(,)>()?;
+        }
 
         let type_mapping: LitStr = input.parse()?;
 
@@ -26,18 +27,10 @@ impl Parse for Contract {
 
         let abi_data: LitStr = input.parse()?;
 
-        let is_hardhat: Option<contract::hardhat> =
-            if let Some(_) = input.parse::<Option<Token!(,)>>()? {
-                input.parse()?
-            } else {
-                None
-            };
-
         Ok(Self {
-            contract_name: contract_name.to_string(),
+            contract_name: contract_name.map(|c| c.to_string()),
             type_mapping: type_mapping.value(),
             abi_data: abi_data.value(),
-            is_hardhat: is_hardhat.is_some(),
         })
     }
 }
@@ -64,14 +57,14 @@ pub fn contract(item: TokenStream) -> TokenStream {
 
     let abi_data = load_json_file(&contract.abi_data);
 
-    let generator = if contract.is_hardhat {
+    let generator = if let Some(contract_name) = contract.contract_name {
         BindingBuilder::new(RustBinding::new(type_mapping))
-            .bind_hardhat(&contract.contract_name, abi_data)
+            .bind(&contract_name, abi_data)
             .finalize()
             .expect("Generate contract/abi binding code")
     } else {
         BindingBuilder::new(RustBinding::new(type_mapping))
-            .bind(&contract.contract_name, abi_data)
+            .bind_hardhat(abi_data)
             .finalize()
             .expect("Generate contract/abi binding code")
     };

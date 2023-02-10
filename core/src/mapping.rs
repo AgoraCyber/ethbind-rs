@@ -13,9 +13,9 @@ pub trait TypeMapping {
 
     fn bytes_m(&self, m: usize) -> String;
 
-    fn integer_m(&self, t: IntegerM) -> String;
+    fn integer_m(&self, t: &IntegerM) -> String;
 
-    fn fixed_m_n(&self, t: FixedMN) -> String;
+    fn fixed_m_n(&self, t: &FixedMN) -> String;
 
     fn array_m(&self, element: &str, m: usize) -> String;
 
@@ -78,7 +78,7 @@ impl TypeMapping for SerdeTypeMapping {
             .unwrap()
     }
 
-    fn fixed_m_n(&self, t: crate::json::FixedMN) -> String {
+    fn fixed_m_n(&self, t: &crate::json::FixedMN) -> String {
         if t.signed {
             self.get_mapping(
                 "fixed_m_n",
@@ -94,7 +94,7 @@ impl TypeMapping for SerdeTypeMapping {
         }
     }
 
-    fn integer_m(&self, t: crate::json::IntegerM) -> String {
+    fn integer_m(&self, t: &crate::json::IntegerM) -> String {
         if t.signed {
             self.get_mapping("int_m", &[("$m", &t.m.to_string())])
                 .unwrap()
@@ -139,7 +139,7 @@ mod tests {
         assert_eq!(mapping.bytes_m(32), "[u8;32]");
 
         assert_eq!(
-            mapping.fixed_m_n(FixedMN {
+            mapping.fixed_m_n(&FixedMN {
                 signed: true,
                 m: 256,
                 n: 30
@@ -148,7 +148,7 @@ mod tests {
         );
 
         assert_eq!(
-            mapping.fixed_m_n(FixedMN {
+            mapping.fixed_m_n(&FixedMN {
                 signed: false,
                 m: 256,
                 n: 30
@@ -157,7 +157,7 @@ mod tests {
         );
 
         assert_eq!(
-            mapping.integer_m(IntegerM {
+            mapping.integer_m(&IntegerM {
                 signed: true,
                 m: 256,
             }),
@@ -165,7 +165,7 @@ mod tests {
         );
 
         assert_eq!(
-            mapping.integer_m(IntegerM {
+            mapping.integer_m(&IntegerM {
                 signed: false,
                 m: 128,
             }),
