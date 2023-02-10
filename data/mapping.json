@@ -15,5 +15,9 @@
   "rt_ops": "ClientOps",
   "rt_tx_receipt": "TransactionReceipt",
   "rt_encode_input": "encode_inputs($inputs)",
-  "rt_decode_output": "decode_outputs($inputs)"
+  "rt_decode_output": "decode_outputs($inputs)",
+  "rt_event": "Event",
+  "rt_event_error_new": "Error::new($params)",
+  "rt_event_new": "Event::new($params)",
+  "rt_decodable_param_new": "$type::decodable()"
 }

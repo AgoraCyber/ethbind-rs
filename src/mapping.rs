@@ -2,9 +2,25 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::TypeMappingError;
+use crate::{
+    error::TypeMappingError,
+    json::{FixedMN, IntegerM, SimpleType},
+};
 
-use super::TypeMapping;
+/// Configurable contract types to language-specific types converter
+pub trait TypeMapping {
+    fn simple(&self, t: &SimpleType) -> String;
+
+    fn bytes_m(&self, m: usize) -> String;
+
+    fn integer_m(&self, t: IntegerM) -> String;
+
+    fn fixed_m_n(&self, t: FixedMN) -> String;
+
+    fn array_m(&self, element: &str, m: usize) -> String;
+
+    fn array(&self, element: &str) -> String;
+}
 
 /// The basic [`TypeMapping`](super::TypeMapping) implementation with [`serde`] Serialize/Deserialize supporting.
 #[derive(Debug, Serialize, Deserialize)]
@@ -97,17 +113,16 @@ impl TypeMapping for SerdeTypeMapping {
 mod tests {
 
     use crate::{
-        gen::TypeMapping,
         json::{FixedMN, IntegerM, SimpleType},
+        TypeMapping,
     };
 
     use super::SerdeTypeMapping;
 
     #[test]
     fn test_load_mapping_from_json() {
-        let mapping: SerdeTypeMapping =
-            serde_json::from_str(include_str!("../../data/mapping.json"))
-                .expect("Loading mapping from json file");
+        let mapping: SerdeTypeMapping = serde_json::from_str(include_str!("../data/mapping.json"))
+            .expect("Loading mapping from json file");
 
         assert_eq!(mapping.array("uint256"), "Vec<uint256>");
 

@@ -2,15 +2,83 @@ use heck::{ToSnakeCase, ToUpperCamelCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 
-use crate::json::{Parameter, SimpleType, Type};
+use crate::{
+    json::{Parameter, SimpleType, Type},
+    Context, Generator, SerdeTypeMapping,
+};
 
-use super::{mapping::SerdeTypeMapping, Context, Generator};
+struct ContractBinding {
+    contract_ident: Ident,
+    impl_token_streams: Vec<TokenStream>,
+    error_token_streams: Vec<(Ident, TokenStream)>,
+    event_token_streams: Vec<(Ident, TokenStream)>,
+}
+
+impl ContractBinding {
+    fn new(contract_ident: Ident) -> Self {
+        Self {
+            contract_ident,
+            impl_token_streams: Default::default(),
+            error_token_streams: Default::default(),
+            event_token_streams: Default::default(),
+        }
+    }
+    fn add_impl_stream(&mut self, token_stream: TokenStream) -> &mut Self {
+        self.impl_token_streams.push(token_stream);
+
+        self
+    }
+
+    fn add_error_stream(&mut self, event_ident: Ident, token_stream: TokenStream) -> &mut Self {
+        self.error_token_streams.push((event_ident, token_stream));
+
+        self
+    }
+
+    fn add_event_stream(&mut self, event_ident: Ident, token_stream: TokenStream) -> &mut Self {
+        self.event_token_streams.push((event_ident, token_stream));
+
+        self
+    }
+
+    fn gen_codes(&self, rt_context: &TokenStream, rt_event: &TokenStream) -> TokenStream {
+        let fns = &self.impl_token_streams;
+
+        let ident = &self.contract_ident;
+
+        let match_patterns = self
+            .event_token_streams
+            .iter()
+            .map(|(ident, expr)| {
+                let pattern = ident.to_string();
+
+                quote! {
+                    #pattern => #expr
+                }
+            })
+            .collect::<Vec<_>>();
+
+        quote! {
+            struct #ident(#rt_context);
+
+            impl #ident {
+                #(#fns)*
+
+                pub fn event<E: AsRef<str>>(name: E) -> #rt_event {
+                    match name {
+                        #(#match_patterns,)*
+                        _ => panic(format!("Unknown event {}",name)),
+                    }
+                }
+            }
+        }
+    }
+}
 
 /// The generator implemented for the target `Rust`
 pub struct RustBinding {
-    contract_ident: Option<Ident>,
     mapping: SerdeTypeMapping,
-    fn_token_streams: Vec<TokenStream>,
+    contracts: Vec<ContractBinding>,
 }
 
 impl RustBinding {
@@ -18,32 +86,47 @@ impl RustBinding {
     pub fn new(mapping: SerdeTypeMapping) -> RustBinding {
         Self {
             mapping,
-            fn_token_streams: Default::default(),
-            contract_ident: None,
+            contracts: Default::default(),
         }
     }
 
-    pub fn gen_codes(&self) -> anyhow::Result<String> {
+    /// Retrieve generated binding code to token streams
+    pub fn to_token_streams(&self) -> anyhow::Result<Vec<(String, TokenStream)>> {
         let rt_context = self.get_mapping_token_stream("rt_context", &[])?;
+        let rt_event = self.get_mapping_token_stream("rt_event", &[])?;
 
-        let fns = &self.fn_token_streams;
+        let contracts = self
+            .contracts
+            .iter()
+            .map(|c| {
+                (
+                    c.contract_ident.to_string(),
+                    c.gen_codes(&rt_context, &rt_event),
+                )
+            })
+            .collect::<Vec<_>>();
 
-        let ident = &self.contract_ident;
+        Ok(contracts)
+    }
+
+    /// Retrieve generated binding code to `String`
+    pub fn to_string(&self) -> anyhow::Result<String> {
+        let streams = self
+            .to_token_streams()?
+            .into_iter()
+            .map(|(_, stream)| stream)
+            .collect::<Vec<_>>();
 
         Ok(quote! {
-            struct #ident(#rt_context);
-
-            impl #ident {
-                #(#fns)*
-            }
+            #(#streams)*
         }
         .to_string())
     }
 
     /// Generate input parameters token streams, returns tuple (parameter_list,generic_list,param_try_into_clauses,to_encoding_param_clauses, where_clauses)
-    fn gen_input_streams(
+    fn gen_input_streams<C: Context>(
         &self,
-        context: &mut Context,
+        context: &mut C,
         tag: &str,
         inputs: &[crate::json::Parameter],
     ) -> anyhow::Result<(
@@ -176,25 +259,94 @@ impl RustBinding {
             .parse()
             .map_err(|e| anyhow::format_err!("{}", e))
     }
+
+    fn add_impl_stream(&mut self, token_stream: TokenStream) -> &mut Self {
+        self.contracts
+            .last_mut()
+            .expect("Call begin first")
+            .add_impl_stream(token_stream);
+
+        self
+    }
+
+    fn add_error_stream(&mut self, event_ident: Ident, token_stream: TokenStream) -> &mut Self {
+        self.contracts
+            .last_mut()
+            .expect("Call begin first")
+            .add_error_stream(event_ident, token_stream);
+
+        self
+    }
+
+    fn add_event_stream(&mut self, event_ident: Ident, token_stream: TokenStream) -> &mut Self {
+        self.contracts
+            .last_mut()
+            .expect("Call begin first")
+            .add_event_stream(event_ident, token_stream);
+
+        self
+    }
+
+    fn contract_name(&self) -> String {
+        self.contracts
+            .last()
+            .expect("Call begin first")
+            .contract_ident
+            .to_string()
+    }
+
+    fn mod_ident(&self) -> Ident {
+        Ident::new(&self.contract_name().to_snake_case(), Span::call_site())
+    }
+
+    /// Get mapping parameter type token stream.
+    ///
+    fn mapping_parameter<C: Context>(
+        &self,
+        context: &mut C,
+        parameter: &Parameter,
+    ) -> anyhow::Result<TokenStream> {
+        context
+            .mapping_parameter(&self.mapping, parameter)
+            // Convert rt_type string to token stream
+            .parse()
+            .map_err(|e| anyhow::format_err!("{}", e))
+    }
+
+    /// Convert contract parameter to token stream of rt decodable param construct expr
+    fn to_decodable_token_stream<C: Context>(
+        &self,
+        context: &mut C,
+        parameter: &Parameter,
+    ) -> anyhow::Result<TokenStream> {
+        let mapping_type = self.mapping_parameter(context, parameter)?;
+
+        self.get_mapping_token_stream(
+            "rt_decodable_param_new",
+            &[("$type", &mapping_type.to_string())],
+        )
+    }
 }
 
 #[allow(unused)]
 impl Generator for RustBinding {
     type TypeMapping = SerdeTypeMapping;
 
-    fn start_generate_contract(&mut self, ctx: &mut super::Context) -> anyhow::Result<()> {
-        let struct_ident = Ident::new(
-            &ctx.contract_name().to_upper_camel_case(),
-            Span::call_site(),
-        );
+    fn begin<C: Context>(&mut self, ctx: &mut C, contract_name: &str) -> anyhow::Result<()> {
+        let contract_ident = Ident::new(&contract_name.to_upper_camel_case(), Span::call_site());
 
-        self.contract_ident = Some(struct_ident);
+        self.contracts.push(ContractBinding::new(contract_ident));
 
         Ok(())
     }
-    fn generate_deploy(
+
+    fn end<C: Context>(&mut self, ctx: &mut C) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn generate_deploy<C: Context>(
         &mut self,
-        ctx: &mut super::Context,
+        ctx: &mut C,
         bytecode: &str,
         inputs: &[crate::json::Parameter],
     ) -> anyhow::Result<()> {
@@ -217,7 +369,7 @@ impl Generator for RustBinding {
         let rt_encode_inputs =
             self.get_mapping_token_stream("rt_encode_input", &[("$inputs", "inputs")])?;
 
-        self.fn_token_streams.push(quote! {
+        self.add_impl_stream(quote! {
             pub fn deploy<C,#(#generic_list,)* Ops>(context: C, #(#params,)* ops: Ops) -> Result<#rt_tx_receipt,#rt_error>
             where C: TryInto<#rt_context>,  C::Error: Into<#rt_error>, Ops: TryInto<#rt_ops>, Ops::Error: Into<#rt_error>,
             #(#generic_where_clauses,)*
@@ -239,33 +391,65 @@ impl Generator for RustBinding {
         Ok(())
     }
 
-    fn generate_error(
+    fn generate_error<C: Context>(
         &mut self,
-        ctx: &mut super::Context,
+        ctx: &mut C,
         event: &crate::json::Error,
     ) -> anyhow::Result<()> {
+        let mod_ident = self.mod_ident();
+
+        let error_ident = Ident::new(&event.name.to_upper_camel_case(), Span::call_site());
+
+        let mut params = vec![];
+
+        for param in &event.inputs {
+            params.push(self.to_decodable_token_stream(ctx, param)?);
+        }
+
+        let params = quote!(vec![#(#params,)*]).to_string();
+
+        let error_type_new =
+            self.get_mapping_token_stream("rt_event_error_new", &[("$params", &params)])?;
+
+        self.add_error_stream(error_ident, error_type_new);
+
         Ok(())
     }
 
-    fn generate_event(
+    fn generate_event<C: Context>(
         &mut self,
-        ctx: &mut super::Context,
+        ctx: &mut C,
         event: &crate::json::Event,
     ) -> anyhow::Result<()> {
+        let event_ident = Ident::new(&event.name.to_upper_camel_case(), Span::call_site());
+
+        let mut params = vec![];
+
+        for param in &event.inputs {
+            params.push(self.to_decodable_token_stream(ctx, param)?);
+        }
+
+        let params = quote!(vec![#(#params,)*]).to_string();
+
+        let event_type_new =
+            self.get_mapping_token_stream("rt_event_new", &[("$params", &params)])?;
+
+        self.add_event_stream(event_ident, event_type_new);
+
         Ok(())
     }
 
-    fn generate_function(
+    fn generate_function<C: Context>(
         &mut self,
-        ctx: &mut super::Context,
+        ctx: &mut C,
         function: &crate::json::Function,
     ) -> anyhow::Result<()> {
         Ok(())
     }
 
-    fn generate_tuple(
+    fn generate_tuple<C: Context>(
         &mut self,
-        ctx: &mut super::Context,
+        ctx: &mut C,
         name: &str,
         tuple: &[crate::json::Parameter],
     ) -> anyhow::Result<String> {
@@ -287,48 +471,44 @@ mod tests {
         process::Command,
     };
 
-    use crate::{
-        gen::{mapping::SerdeTypeMapping, Generate},
-        json::HardhatArtifact,
-    };
+    use sha3::{Digest, Keccak256};
+
+    use crate::{BindingBuilder, SerdeTypeMapping};
 
     use super::RustBinding;
 
     #[test]
-    fn test_deploy() {
+    fn test_gen_rust() {
         _ = pretty_env_logger::try_init();
-
-        let artifact: HardhatArtifact = serde_json::from_str(include_str!("../../data/abi.json"))
-            .expect("Parse hardhat artifact");
 
         let types_mapping: SerdeTypeMapping =
             serde_json::from_str(include_str!("../../data/mapping.json"))
                 .expect("Load types mapping data");
 
-        let mut rust_binding = RustBinding::new(types_mapping);
-
-        artifact
-            .generate("test", &mut rust_binding)
+        let codes = BindingBuilder::new(RustBinding::new(types_mapping))
+            .bind_hardhat("test", include_str!("../../data/abi.json"))
+            .finalize()
+            .expect("Generate codes")
+            .to_string()
             .expect("Generate codes");
-
-        let codes = rust_binding.gen_codes().expect("Generate contract mode");
-
-        let cargo_toml_directory = env::var("CARGO_MANIFEST_DIR").expect("Get CARGO_MANIFEST_DIR");
 
         let rust_fmt_path =
             PathBuf::from(env::var("CARGO_HOME").expect("Get CARGO_HOME")).join("bin/rustfmt");
 
-        let path = PathBuf::from(cargo_toml_directory).join("abi.rs");
+        let temp_file_name = format!(
+            "{:x}",
+            Keccak256::new().chain_update(codes.as_bytes()).finalize()
+        );
+
+        let path = env::temp_dir().join(temp_file_name);
 
         if path.exists() {
             remove_file(path.clone()).expect("Remove exists generate file");
         }
 
-        {
-            let mut file = File::create(path.clone()).expect("Open tmp file");
+        let mut file = File::create(path.clone()).expect("Open tmp file");
 
-            file.write_all(codes.as_bytes()).expect("Write tmp file");
-        }
+        file.write_all(codes.as_bytes()).expect("Write tmp file");
 
         // Call rustfmt to fmt tmp file
         let mut child = Command::new(&rust_fmt_path)
