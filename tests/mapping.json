@@ -8,16 +8,16 @@
   "uint_m": "Int<false,$m>",
   "address": "Address",
   "tuple": "$name",
-  "rt_to_encodable_param": "$param.encodable()",
-  "rt_from_decodable_param": "$type::from_decodable($param)",
+  "rt_to_encodable": "$var.encodable()",
+  "rt_to_decodable": "$type::decodable($indexed)",
   "rt_error": "anyhow::Error",
   "rt_context": "Client",
   "rt_ops": "ClientOps",
   "rt_tx_receipt": "TransactionReceipt",
   "rt_encode_input": "encode_inputs($inputs)",
   "rt_decode_output": "decode_outputs($inputs)",
-  "rt_event": "Event",
-  "rt_event_error_new": "Error::new($params)",
-  "rt_event_new": "Event::new($params)",
-  "rt_decodable_param_new": "$type::decodable()"
+  "rt_contract_event": "Event",
+  "rt_contract_error": "Error",
+  "rt_contract_error_new": "Error::new($params)",
+  "rt_contract_event_new": "Event::new($params)"
 }

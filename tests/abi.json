@@ -61,6 +61,31 @@
           "type": "address"
         }
       ],
+      "name": "DelistError",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "from_",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId_",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "to_",
+          "type": "address"
+        }
+      ],
       "name": "List",
       "type": "event"
     },

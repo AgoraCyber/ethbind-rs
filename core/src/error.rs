@@ -29,6 +29,6 @@ pub enum TypeMappingError {
     #[error("Type mapping not found for {0}")]
     NotFound(String),
 
-    #[error("Serde type mapping parsing error for type {0}, valid wildcards: {1}")]
+    #[error("Serde type mapping parsing error for type {0}, valid placeholder: {1}")]
     Serde(String, String),
 }

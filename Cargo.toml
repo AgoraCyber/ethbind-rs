@@ -15,9 +15,13 @@ ethbind-rust-macros = { path = "./macros", version = "^0.1", optional = true }
 [dev-dependencies]
 anyhow = "^1"
 
+serde_json = "^1.0"
+serde = { version = "^1.0", features = ["derive"] }
+
 [features]
-default = ["rust_macro_gen"]
+default = ["rust_macro_gen", "serde"]
 rust_macro_gen = ["ethbind-rust-macros"]
+serde = ["ethbind-rust-macros/serde"]
 
 [workspace]
 members = ["macros", "core", ".", "rust"]

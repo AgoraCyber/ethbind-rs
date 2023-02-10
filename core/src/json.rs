@@ -125,6 +125,13 @@ pub struct Parameter {
     pub r#type: Type,
     /// used for tuple types, only if the type field start with prefix `tuple`. e.g, `tupe[]`,`tuple`
     pub components: Option<Vec<Parameter>>,
+    /// This field is only meaningful for `Event` or `Error`
+    #[serde(default = "default_indexed")]
+    pub indexed: bool,
+}
+
+fn default_indexed() -> bool {
+    false
 }
 
 /// Contract abi simple types enum
