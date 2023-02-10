@@ -608,8 +608,8 @@ mod tests {
 
     #[test]
     fn test_hardhat_artifact() {
-        let _: HardhatArtifact =
-            serde_json::from_str(include_str!("../data/abi.json")).expect("Parse hardhat artifact");
+        let _: HardhatArtifact = serde_json::from_str(include_str!("../../data/abi.json"))
+            .expect("Parse hardhat artifact");
     }
 
     #[test]

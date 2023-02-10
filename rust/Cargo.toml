@@ -1,0 +1,25 @@
+[package]
+name = "ethbind-rust"
+license-file.workspace = true
+edition.workspace = true
+version.workspace = true
+description.workspace = true
+documentation.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ethbind-core = { path = "../core", version = "^0.1" }
+
+log = "0.4.16"
+
+thiserror = "^1"
+anyhow = "^1"
+
+quote = "^1"
+proc-macro2 = "^1"
+
+heck = "^0.4"
+
+[dev-dependencies]
+pretty_env_logger = "0.4.0"

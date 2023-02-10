@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
@@ -109,6 +109,13 @@ impl TypeMapping for SerdeTypeMapping {
     }
 }
 
+impl FromStr for SerdeTypeMapping {
+    type Err = serde_json::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -121,8 +128,9 @@ mod tests {
 
     #[test]
     fn test_load_mapping_from_json() {
-        let mapping: SerdeTypeMapping = serde_json::from_str(include_str!("../data/mapping.json"))
-            .expect("Loading mapping from json file");
+        let mapping: SerdeTypeMapping =
+            serde_json::from_str(include_str!("../../data/mapping.json"))
+                .expect("Loading mapping from json file");
 
         assert_eq!(mapping.array("uint256"), "Vec<uint256>");
 

@@ -1,6 +1,6 @@
 # ethbind-rs
 
-ethbind-rs is a ethereum contract binding code generation framework for arbitrary programming languages.
+ethbind-rs is an ethereum contract binding code generation framework for arbitrary programming languages.
 
 ## Generator
 
