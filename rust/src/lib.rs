@@ -6,6 +6,7 @@ use ethbind_core::{
     json::{Parameter, SimpleType, Type},
     Context, Generator, SerdeTypeMapping,
 };
+use regex::Regex;
 
 struct ContractBinding {
     contract_ident: Ident,
@@ -65,9 +66,9 @@ impl ContractBinding {
                 #(#fns)*
 
                 pub fn event<E: AsRef<str>>(name: E) -> #rt_event {
-                    match name {
+                    match name.as_ref() {
                         #(#match_patterns,)*
-                        _ => panic(format!("Unknown event {}",name)),
+                        _ => panic!("Unknown event"),
                     }
                 }
             }
@@ -146,8 +147,6 @@ impl RustBinding {
 
         let mut where_clauses = vec![];
 
-        let rt_error = self.get_mapping_token_stream("rt_error", &[])?;
-
         for (index, input) in inputs.iter().enumerate() {
             let variable_name = input.name.to_snake_case();
 
@@ -165,7 +164,7 @@ impl RustBinding {
                 .map_err(|e| anyhow::format_err!("{}", e))?;
 
             where_clauses.push(
-                quote!(#type_ident: TryInto<#mapping_type>, #type_ident::Error: Into<#rt_error>),
+                quote!(#type_ident: TryInto<#mapping_type>, #type_ident::Error: std::error::Error + Sync + Send + 'static),
             );
 
             param_try_into_clauses.push(quote!(let #variable_ident = #variable_ident.try_into()?));
@@ -321,10 +320,17 @@ impl RustBinding {
     ) -> anyhow::Result<TokenStream> {
         let mapping_type = self.mapping_parameter(context, parameter)?;
 
-        self.get_mapping_token_stream(
-            "rt_decodable_param_new",
-            &[("$type", &mapping_type.to_string())],
-        )
+        let mapping_type = mapping_type.to_string();
+
+        let regex = Regex::new(r"<.+>").unwrap();
+
+        let mut current = mapping_type.clone();
+
+        for m in regex.find_iter(&mapping_type) {
+            current = current.replace(m.as_str(), &format!("::{}", m.as_str()));
+        }
+
+        self.get_mapping_token_stream("rt_decodable_param_new", &[("$type", &current)])
     }
 }
 
@@ -371,7 +377,7 @@ impl Generator for RustBinding {
 
         self.add_impl_stream(quote! {
             pub fn deploy<C,#(#generic_list,)* Ops>(context: C, #(#params,)* ops: Ops) -> Result<#rt_tx_receipt,#rt_error>
-            where C: TryInto<#rt_context>,  C::Error: Into<#rt_error>, Ops: TryInto<#rt_ops>, Ops::Error: Into<#rt_error>,
+            where C: TryInto<#rt_context>,  C::Error: std::error::Error + Sync + Send + 'static, Ops: TryInto<#rt_ops>, Ops::Error: std::error::Error + Sync + Send + 'static,
             #(#generic_where_clauses,)*
             {
                 let context = context.try_into()?;
@@ -380,9 +386,9 @@ impl Generator for RustBinding {
 
                 let ops = ops.try_into()?;
 
-                let inputs = vec![#(#to_encoding_param_clauses;)*];
+                let inputs = vec![#(#to_encoding_param_clauses,)*];
 
-                let call_data = #rt_encode_inputs;
+                let call_data = #rt_encode_inputs?;
 
                 context.deploy_contract(call_data,ops)
             }
@@ -461,67 +467,65 @@ impl Generator for RustBinding {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::{
-//         env,
-//         fs::{read_to_string, remove_file, File},
-//         io::Write,
-//         path::PathBuf,
-//         process::Command,
-//     };
+#[cfg(test)]
+mod tests {
+    use std::{
+        env,
+        fs::{read_to_string, remove_file, File},
+        io::Write,
+        path::PathBuf,
+        process::Command,
+    };
 
-//     use sha3::{Digest, Keccak256};
+    use sha3::{Digest, Keccak256};
 
-//     use crate::{BindingBuilder, SerdeTypeMapping};
+    use ethbind_core::{BindingBuilder, SerdeTypeMapping};
 
-//     use super::RustBinding;
+    use super::RustBinding;
 
-//     #[test]
-//     fn test_gen_rust() {
-//         _ = pretty_env_logger::try_init();
+    #[test]
+    fn test_gen_rust() {
+        _ = pretty_env_logger::try_init();
 
-//         let types_mapping: SerdeTypeMapping =
-//             serde_json::from_str(include_str!("../../../data/mapping.json"))
-//                 .expect("Load types mapping data");
+        let types_mapping: SerdeTypeMapping = include_str!("../../tests/mapping.json")
+            .parse()
+            .expect("Load types mapping data");
 
-//         let codes = BindingBuilder::new(RustBinding::new(types_mapping))
-//             .bind_hardhat("test", include_str!("../../../data/abi.json"))
-//             .finalize()
-//             .expect("Generate codes")
-//             .to_string()
-//             .expect("Generate codes");
+        let codes = BindingBuilder::new(RustBinding::new(types_mapping))
+            .bind_hardhat("test", include_str!("../../data/abi.json"))
+            .finalize()
+            .expect("Generate codes")
+            .to_string()
+            .expect("Generate codes");
 
-//         let rust_fmt_path =
-//             PathBuf::from(env::var("CARGO_HOME").expect("Get CARGO_HOME")).join("bin/rustfmt");
+        let rust_fmt_path =
+            PathBuf::from(env::var("CARGO_HOME").expect("Get CARGO_HOME")).join("bin/rustfmt");
 
-//         let temp_file_name = format!(
-//             "{:x}",
-//             Keccak256::new().chain_update(codes.as_bytes()).finalize()
-//         );
+        let temp_file_name = format!(
+            "{:x}",
+            Keccak256::new().chain_update(codes.as_bytes()).finalize()
+        );
 
-//         let path = env::temp_dir().join(temp_file_name);
+        let path = env::temp_dir().join(temp_file_name);
 
-//         if path.exists() {
-//             remove_file(path.clone()).expect("Remove exists generate file");
-//         }
+        if path.exists() {
+            remove_file(path.clone()).expect("Remove exists generate file");
+        }
 
-//         let mut file = File::create(path.clone()).expect("Open tmp file");
+        let mut file = File::create(path.clone()).expect("Open tmp file");
 
-//         file.write_all(codes.as_bytes()).expect("Write tmp file");
+        file.write_all(codes.as_bytes()).expect("Write tmp file");
 
-//         // Call rustfmt to fmt tmp file
-//         let mut child = Command::new(&rust_fmt_path)
-//             .args([path.to_str().unwrap()])
-//             .spawn()
-//             .expect("failed to execute child");
+        // Call rustfmt to fmt tmp file
+        let mut child = Command::new(&rust_fmt_path)
+            .args([path.to_str().unwrap()])
+            .spawn()
+            .expect("failed to execute child");
 
-//         child.wait().expect("failed to wait on child");
+        child.wait().expect("failed to wait on child");
 
-//         let formated = read_to_string(path).expect("Read formated codes");
+        let formated = read_to_string(path).expect("Read formated codes");
 
-//         log::debug!("generated: \n{}", formated);
-
-//         assert_eq!(formated, include_str!("../../../data/expect.rs"));
-//     }
-// }
+        log::debug!("generated: \n{}", formated);
+    }
+}

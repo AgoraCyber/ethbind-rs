@@ -1,5 +1,5 @@
 [package]
-name = "ethbind-macros"
+name = "ethbind-rust-macros"
 license-file.workspace = true
 edition.workspace = true
 version.workspace = true

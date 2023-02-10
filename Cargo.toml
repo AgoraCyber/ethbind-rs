@@ -10,6 +10,14 @@ documentation.workspace = true
 
 [dependencies]
 ethbind-core = { path = "./core", version = "^0.1" }
+ethbind-rust-macros = { path = "./macros", version = "^0.1", optional = true }
+
+[dev-dependencies]
+anyhow = "^1"
+
+[features]
+default = ["rust_macro_gen"]
+rust_macro_gen = ["ethbind-rust-macros"]
 
 [workspace]
 members = ["macros", "core", ".", "rust"]
