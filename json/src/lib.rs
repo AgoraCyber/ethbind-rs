@@ -2,7 +2,7 @@
 //!
 //! Visit [`official document`](https://docs.soliditylang.org/en/v0.8.17/abi-spec.html#json) for details
 
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -203,6 +203,13 @@ pub struct FixedMN {
     pub signed: bool,
 }
 
+impl Display for FixedMN {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = serde_json::to_string(self).expect("Serialize type to json");
+        write!(f, "{}", &value[1..value.len() - 1])
+    }
+}
+
 impl Serialize for FixedMN {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -268,6 +275,13 @@ pub struct IntegerM {
     pub m: usize,
 }
 
+impl Display for IntegerM {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = serde_json::to_string(self).expect("Serialize type to json");
+        write!(f, "{}", &value[1..value.len() - 1])
+    }
+}
+
 impl Serialize for IntegerM {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -320,6 +334,13 @@ impl<'de> Deserialize<'de> for IntegerM {
 /// binary type of M bytes, 0 < M <= 32
 pub struct BytesM {
     pub m: usize,
+}
+
+impl Display for BytesM {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = serde_json::to_string(self).expect("Serialize type to json");
+        write!(f, "{}", &value[1..value.len() - 1])
+    }
 }
 
 impl Serialize for BytesM {
@@ -386,6 +407,13 @@ impl FromStr for Type {
     }
 }
 
+impl Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = serde_json::to_string(self).expect("Serialize type to json");
+        write!(f, "{}", &value[1..value.len() - 1])
+    }
+}
+
 impl Serialize for Type {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -447,6 +475,13 @@ pub struct ArrayM {
     pub m: usize,
 }
 
+impl Display for ArrayM {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = serde_json::to_string(self).expect("Serialize type to json");
+        write!(f, "{}", &value[1..value.len() - 1])
+    }
+}
+
 impl Serialize for ArrayM {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -494,6 +529,13 @@ impl<'de> Deserialize<'de> for ArrayM {
 /// a variable-length array of elements of the given type
 pub struct Array {
     pub element: Type,
+}
+
+impl Display for Array {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = serde_json::to_string(self).expect("Serialize type to json");
+        write!(f, "{}", &value[1..value.len() - 1])
+    }
 }
 
 impl Serialize for Array {
@@ -631,6 +673,7 @@ mod tests {
             "tuple[]",
             "tuple[][32]",
             "bool[20]",
+            "uint256[20]",
         ];
 
         for v in test_vector {
