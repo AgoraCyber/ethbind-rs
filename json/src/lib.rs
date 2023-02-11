@@ -7,7 +7,31 @@ use std::str::FromStr;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::error::AbiError;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum AbiError {
+    #[error("Invalid fixed type declare {0}, {1}")]
+    FixedMN(String, String),
+
+    #[error("Invalid integer type declare {0}, {1}")]
+    IntegerM(String, String),
+
+    #[error("Invalid fixed length binary type declare {0}, {1}")]
+    BytesM(String, String),
+
+    #[error("Invalid tuple type declare {0}, {1}")]
+    Tuple(String, String),
+
+    #[error("Invalid fixed-length Array type declare {0}, {1}")]
+    ArrayM(String, String),
+
+    #[error("Invalid Array type declare {0}, {1}")]
+    Array(String, String),
+
+    #[error("Invalid Type declare {0}")]
+    UnknownType(String),
+}
 
 /// Hardhat generate artifact
 #[derive(Debug, Serialize, Deserialize)]
@@ -508,9 +532,7 @@ impl<'de> Deserialize<'de> for Array {
 #[cfg(test)]
 mod tests {
 
-    use crate::json::{array_m_regex, fixed_regex, IntegerM, Type};
-
-    use super::{AbiField, FixedMN, HardhatArtifact};
+    use super::*;
 
     #[test]
     fn test_fixed_regex() {
@@ -618,8 +640,8 @@ mod tests {
 
     #[test]
     fn test_hardhat_artifact() {
-        let _: HardhatArtifact = serde_json::from_str(include_str!("../../data/abi.json"))
-            .expect("Parse hardhat artifact");
+        let _: HardhatArtifact =
+            serde_json::from_str(include_str!("abi.json")).expect("Parse hardhat artifact");
     }
 
     #[test]
