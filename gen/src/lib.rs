@@ -17,8 +17,11 @@ use ethbind_json::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// Typed **bind** error
 #[derive(Debug, Error)]
-pub enum EthBindError {
+pub enum BindError {
+    /// This error is returned by [`RuntimeBinder`] to indicate
+    /// that a runtime type binding for the contract type was not found.
     #[error("Runtime binder didn't found mapping runtime type for {0}")]
     UnknownType(String),
 }
@@ -194,7 +197,7 @@ impl JsonRuntimeBinder {
     fn search_basic_type<T: AsRef<str>>(&self, type_name: T) -> anyhow::Result<&JsonRuntimeType> {
         self.runtime_types
             .get(type_name.as_ref())
-            .ok_or(EthBindError::UnknownType(type_name.as_ref().to_owned()).into())
+            .ok_or(BindError::UnknownType(type_name.as_ref().to_owned()).into())
     }
 
     fn to_array_m(&mut self, element: &ArrayM) -> anyhow::Result<Option<&JsonRuntimeType>> {

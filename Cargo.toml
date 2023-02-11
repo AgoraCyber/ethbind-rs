@@ -1,5 +1,5 @@
 [workspace]
-members = ["json", "gen"]
+members = ["json", "gen", "rust"]
 
 [workspace.package]
 version = "0.1.0"
