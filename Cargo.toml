@@ -1,5 +1,5 @@
 [workspace]
-members = ["json"]
+members = ["json", "gen"]
 
 [workspace.package]
 version = "0.1.0"
@@ -25,3 +25,8 @@ regex = "^1"
 # error
 thiserror = "^1"
 anyhow = "^1"
+
+
+#sub crates
+ethbind-json = { path = "./json", version = "^0.1" }
+ethbind-gen = { path = "./gen", version = "^0.1" }

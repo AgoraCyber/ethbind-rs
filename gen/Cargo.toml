@@ -1,0 +1,21 @@
+[package]
+name = "ethbind-gen"
+license-file.workspace = true
+edition.workspace = true
+version.workspace = true
+description = "ethbind compile time generator system"
+documentation = "https://docs.rs/ethbind-gen"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+
+# ethbind sub crates
+ethbind-json = { workspace = true }
+
+
+#serde
+serde = { workspace = true }
