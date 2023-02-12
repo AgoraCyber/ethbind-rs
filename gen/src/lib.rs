@@ -127,9 +127,13 @@ pub struct File {
     pub data: String,
 }
 
-impl Contract {
+pub trait SaveTo {
+    fn save_to<P: AsRef<Path>>(&self, output_dir: P) -> anyhow::Result<()>;
+}
+
+impl SaveTo for Contract {
     /// Write generated contract codes to file system.
-    pub fn write_all<P: AsRef<Path>>(&self, output_dir: P) -> anyhow::Result<()> {
+    fn save_to<P: AsRef<Path>>(&self, output_dir: P) -> anyhow::Result<()> {
         if !output_dir.as_ref().exists() {
             fs::create_dir_all(&output_dir)?;
         }
@@ -138,6 +142,16 @@ impl Contract {
             let path = output_dir.as_ref().join(&file.name);
 
             fs::write(path, &file.data)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl SaveTo for Vec<Contract> {
+    fn save_to<P: AsRef<Path>>(&self, output_dir: P) -> anyhow::Result<()> {
+        for c in self {
+            c.save_to(&output_dir)?;
         }
 
         Ok(())
@@ -462,6 +476,19 @@ where
     }
 }
 
+impl<L, R> From<(L, R)> for Executor<L, R>
+where
+    R: RuntimeBinder,
+    L: Generator,
+{
+    fn from(value: (L, R)) -> Self {
+        Executor {
+            generator: value.0,
+            runtime_binder: value.1,
+        }
+    }
+}
+
 pub struct BindingBuilder<C: Context> {
     context: C,
     builders: Vec<Box<dyn Fn(&mut C) -> anyhow::Result<()>>>,
@@ -478,9 +505,9 @@ impl<C: Context + Default> Default for BindingBuilder<C> {
 
 impl<C: Context> BindingBuilder<C> {
     /// Create new binder builder with providing [`generator`](Generator)
-    pub fn new(context: C) -> Self {
+    pub fn new<C1: Into<C>>(context: C1) -> Self {
         Self {
-            context,
+            context: context.into(),
             builders: Default::default(),
         }
     }

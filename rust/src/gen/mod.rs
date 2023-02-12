@@ -1,6 +1,4 @@
-mod contract;
-use contract::*;
-
+use proc_macro2::TokenStream;
 /// The rust language generator for `Ethbind`
 #[derive(Debug, Default)]
 pub struct RustGenerator {
@@ -18,15 +16,16 @@ impl RustGenerator {
         self.contracts.last_mut().expect("Call new_contract first")
     }
 
-    pub(crate) fn to_runtime_type_ident<R: ethbind_gen::RuntimeBinder>(
+    pub(crate) fn to_runtime_type_token_stream<R: ethbind_gen::RuntimeBinder>(
         &self,
         runtime_binder: &mut R,
         name: &str,
-    ) -> anyhow::Result<Ident> {
-        Ok(format_ident!(
-            "{}",
-            runtime_binder.get(name)?.declare_type()
-        ))
+    ) -> anyhow::Result<TokenStream> {
+        Ok(runtime_binder
+            .get(name)?
+            .declare_type()
+            .parse()
+            .map_err(|e| anyhow::format_err!("{}", e))?)
     }
 }
 
@@ -36,5 +35,6 @@ pub use generator::*;
 
 mod function;
 pub use function::*;
-use proc_macro2::Ident;
-use quote::format_ident;
+
+mod contract;
+use contract::*;

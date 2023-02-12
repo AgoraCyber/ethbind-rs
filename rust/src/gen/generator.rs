@@ -34,13 +34,13 @@ impl Generator for RustGenerator {
         contructor: &Constructor,
         deploy_bytes: &str,
     ) -> anyhow::Result<()> {
-        let client_type = self.to_runtime_type_ident(runtime_binder, "rt_client")?;
+        let client_type = self.to_runtime_type_token_stream(runtime_binder, "rt_client")?;
 
-        let opts_type = self.to_runtime_type_ident(runtime_binder, "rt_opts")?;
+        let opts_type = self.to_runtime_type_token_stream(runtime_binder, "rt_opts")?;
 
-        let receipt_type = self.to_runtime_type_ident(runtime_binder, "rt_receipt")?;
+        let receipt_type = self.to_runtime_type_token_stream(runtime_binder, "rt_receipt")?;
 
-        let error_type = self.to_runtime_type_ident(runtime_binder, "rt_error")?;
+        let error_type = self.to_runtime_type_token_stream(runtime_binder, "rt_error")?;
 
         let generic_list = self.to_generic_list(runtime_binder, &contructor.inputs)?;
 
@@ -70,7 +70,7 @@ impl Generator for RustGenerator {
             }
         });
 
-        unimplemented!()
+        Ok(())
     }
 
     fn generate_error<R: ethbind_gen::RuntimeBinder>(
@@ -78,7 +78,7 @@ impl Generator for RustGenerator {
         runtime_binder: &mut R,
         error: &Error,
     ) -> anyhow::Result<()> {
-        unimplemented!()
+        Ok(())
     }
 
     fn generate_event<R: ethbind_gen::RuntimeBinder>(
@@ -86,7 +86,7 @@ impl Generator for RustGenerator {
         runtime_binder: &mut R,
         event: &Event,
     ) -> anyhow::Result<()> {
-        unimplemented!()
+        Ok(())
     }
 
     fn generate_fn<R: ethbind_gen::RuntimeBinder>(
@@ -94,6 +94,6 @@ impl Generator for RustGenerator {
         runtime_binder: &mut R,
         r#fn: &Function,
     ) -> anyhow::Result<()> {
-        unimplemented!()
+        Ok(())
     }
 }
