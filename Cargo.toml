@@ -30,3 +30,10 @@ anyhow = "^1"
 #sub crates
 ethbind-json = { path = "./json", version = "^0.1" }
 ethbind-gen = { path = "./gen", version = "^0.1" }
+
+#rust code generation
+quote = "^1"
+proc-macro2 = "^1"
+
+
+heck = "^0.4"

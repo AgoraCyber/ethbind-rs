@@ -74,19 +74,23 @@ pub trait RuntimeBinder {
 /// The implementation must support multi-round generation process.
 pub trait Generator {
     /// [`Generatable`] or `Executor` call this fn to start a new contract generation round.
-    fn begin<R: RuntimeBinder>(&mut self, runtime_binder: &R, name: &str) -> anyhow::Result<()>;
+    fn begin<R: RuntimeBinder>(&mut self, runtime_binder: &mut R, name: &str)
+        -> anyhow::Result<()>;
+
+    /// Close current generation contract round.
+    fn end<R: RuntimeBinder>(&mut self, runtime_binder: &mut R, name: &str) -> anyhow::Result<()>;
 
     /// Generate contract method ,call this fn after call [`begin`](Generator::begin) at least once.
     fn generate_fn<R: RuntimeBinder>(
         &mut self,
-        runtime_binder: &R,
+        runtime_binder: &mut R,
         r#fn: &Function,
     ) -> anyhow::Result<()>;
 
     /// Generate contract deploy method ,call this fn after call [`begin`](Generator::begin) at least once.
     fn generate_deploy<R: RuntimeBinder>(
         &mut self,
-        runtime_binder: &R,
+        runtime_binder: &mut R,
         contructor: &Constructor,
         deploy_bytes: &str,
     ) -> anyhow::Result<()>;
@@ -94,14 +98,14 @@ pub trait Generator {
     /// Generate event handle interface ,call this fn after call [`begin`](Generator::begin) at least once.
     fn generate_event<R: RuntimeBinder>(
         &mut self,
-        runtime_binder: &R,
+        runtime_binder: &mut R,
         event: &Event,
     ) -> anyhow::Result<()>;
 
     /// Generate error handle interface ,call this fn after call [`begin`](Generator::begin) at least once.
     fn generate_error<R: RuntimeBinder>(
         &mut self,
-        runtime_binder: &R,
+        runtime_binder: &mut R,
         error: &Error,
     ) -> anyhow::Result<()>;
 
@@ -109,12 +113,12 @@ pub trait Generator {
     fn finalize(self) -> Vec<Contract>;
 }
 
-/// Generated contract package
+/// Generated contract files archive
 pub struct Contract {
     pub files: Vec<File>,
 }
 
-/// Generated code data and file name
+/// Generated codes and file name
 pub struct File {
     pub name: String,
     pub data: String,
