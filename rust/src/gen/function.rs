@@ -17,12 +17,12 @@ impl RustGenerator {
         for (index, param) in params.iter().enumerate() {
             let type_ident = format_ident!("P{}", index);
 
-            let var_ident = format_ident!("P{}", param.name.to_kebab_case());
+            let var_ident = format_ident!("{}", param.name.to_kebab_case());
 
             token_streams.push(quote!(#var_ident: #type_ident));
         }
 
-        unimplemented!()
+        Ok(token_streams)
     }
 
     /// Convert fn param list to fn generic list
@@ -39,7 +39,7 @@ impl RustGenerator {
             token_streams.push(quote!(#type_ident));
         }
 
-        unimplemented!()
+        Ok(token_streams)
     }
 
     /// Convert fn param list to fn where clause list
@@ -58,7 +58,24 @@ impl RustGenerator {
             token_streams.push(quote!(#type_ident: TryInto<#try_into_type>, #type_ident::Error: std::error::Error + Syn + Send + 'static));
         }
 
-        unimplemented!()
+        Ok(token_streams)
+    }
+
+    /// Convert fn param list to try_into statement
+    pub(crate) fn to_try_into_list<R: ethbind_gen::RuntimeBinder>(
+        &self,
+        _runtime_binder: &mut R,
+        params: &[Parameter],
+    ) -> anyhow::Result<Vec<TokenStream>> {
+        let mut token_streams = vec![];
+
+        for (_, param) in params.iter().enumerate() {
+            let var_ident = format_ident!("{}", param.name.to_kebab_case());
+
+            token_streams.push(quote!(let #var_ident = #var_ident.try_into()?;));
+        }
+
+        Ok(token_streams)
     }
 
     #[allow(unused)]

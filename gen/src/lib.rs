@@ -67,6 +67,9 @@ pub trait RuntimeBinder {
     ///
     /// If the [`runtime type`](RuntimeBinder::RuntimeType) is tuple or array of tuple returns [`None`]
     fn to_runtime_type(&mut self, r#type: &Type) -> anyhow::Result<Option<&Self::RuntimeType>>;
+
+    /// Get runtime type by metadata `name`, If not found the implementation must return [`Err(BindError::UnknownType)`]
+    fn get(&mut self, name: &str) -> anyhow::Result<&Self::RuntimeType>;
 }
 
 /// Programming language code generator supported by `Ethbind`.
@@ -402,6 +405,13 @@ impl RuntimeBinder for JsonRuntimeBinder {
             Type::FixedMN(element) => self.to_fixed_m_n(element).map(|c| Some(c)),
             Type::IntegerM(element) => self.to_integer_m(element).map(|c| Some(c)),
         }
+    }
+
+    fn get(&mut self, name: &str) -> anyhow::Result<&Self::RuntimeType> {
+        Ok(self
+            .runtime_types
+            .get(name)
+            .ok_or(BindError::UnknownType(name.to_string()))?)
     }
 }
 

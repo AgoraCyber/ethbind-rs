@@ -16,4 +16,8 @@ impl ContractGenerator {
             ..Default::default()
         }
     }
+
+    pub(crate) fn add_fn_token_stream(&mut self, token_stream: TokenStream) {
+        self.fn_token_streams.push(token_stream);
+    }
 }
