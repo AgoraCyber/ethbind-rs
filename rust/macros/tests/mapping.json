@@ -1,47 +1,47 @@
 {
   "bytes": {
     "declare_type": "Vec<u8>",
-    "rlp_encode": "$var.encode(&mut $outputs)",
+    "rlp_encode": "$var.encode($outputs)",
     "rlp_decode": "Vec::<u8>::decode($inputs)"
   },
   "uint_m": {
-    "declare_type": "int<false,$m>",
-    "rlp_encode": "$var.encode(&mut $outputs)",
-    "rlp_decode": "int::<false,$m>::decode($inputs)"
+    "declare_type": "mock::Int<false,$m>",
+    "rlp_encode": "$var.encode($outputs)",
+    "rlp_decode": "mock::Int::<false,$m>::decode($inputs)"
   },
   "int_m": {
-    "declare_type": "int<true,$m>",
-    "rlp_encode": "$var.encode(&mut $outputs)",
-    "rlp_decode": "int::<true,$m>::decode($inputs)"
+    "declare_type": "mock::Int<true,$m>",
+    "rlp_encode": "$var.encode($outputs)",
+    "rlp_decode": "mock::Int::<true,$m>::decode($inputs)"
   },
   "fixed_m_n": {
-    "declare_type": "fixed<true,$m,$n>",
-    "rlp_encode": "$var.encode(&mut $outputs)",
-    "rlp_decode": "fixed::<true,$m,$n>::decode($inputs)"
+    "declare_type": "mock::Fixed<true,$m,$n>",
+    "rlp_encode": "$var.encode($outputs)",
+    "rlp_decode": "mock::Fixed::<true,$m,$n>::decode($inputs)"
   },
   "ufixed_m_n": {
-    "declare_type": "fixed<true,$m,$n>",
-    "rlp_encode": "$var.encode(&mut $outputs)",
-    "rlp_decode": "fixed::<true,$m,$n>::decode($inputs)"
+    "declare_type": "mock::Fixed<true,$m,$n>",
+    "rlp_encode": "$var.encode($outputs)",
+    "rlp_decode": "mock::Fixed::<true,$m,$n>::decode($inputs)"
   },
   "array_m": {
     "declare_type": "[$el;$m]",
-    "rlp_encode": "$var.encode(&mut $outputs)",
+    "rlp_encode": "$var.encode($outputs)",
     "rlp_decode": "<[$el;$m]>::decode($inputs)"
   },
   "array": {
     "declare_type": "Vec<$el>",
-    "rlp_encode": "$var.encode(&mut $outputs)",
+    "rlp_encode": "$var.encode($outputs)",
     "rlp_decode": "Vec<$el>::decode($inputs)"
   },
   "bytes_m": {
     "declare_type": "[u8;$m]",
-    "rlp_encode": "$var.encode(&mut $outputs)",
+    "rlp_encode": "$var.encode($outputs)",
     "rlp_decode": "<[u8;$m]>::decode($inputs)"
   },
   "address": {
     "declare_type": "mock::Address",
-    "rlp_encode": "$var.encode(&mut $outputs)",
+    "rlp_encode": "$var.encode($outputs)",
     "rlp_decode": "mock::Address::decode($inputs)"
   },
   "rt_client": {
@@ -57,5 +57,11 @@
   },
   "rt_receipt": {
     "declare_type": "mock::TransactionReceipt"
+  },
+  "rt_rlp_decodable": {
+    "declare_type": "mock::RlpDecodable"
+  },
+  "rt_rlp_encodable": {
+    "declare_type": "mock::RlpEncodable"
   }
 }

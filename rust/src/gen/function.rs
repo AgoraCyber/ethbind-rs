@@ -1,5 +1,6 @@
 use ethbind_gen::RuntimeType;
 use ethbind_json::{Parameter, Type};
+use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
@@ -18,7 +19,7 @@ impl RustGenerator {
             let type_ident = format_ident!("P{}", index);
 
             let var_ident = if param.name != "" {
-                format_ident!("{}", param.name)
+                format_ident!("{}", param.name.to_snake_case())
             } else {
                 format_ident!("p{}", index)
             };
@@ -75,7 +76,7 @@ impl RustGenerator {
 
         for (index, param) in params.iter().enumerate() {
             let var_ident = if param.name != "" {
-                format_ident!("{}", param.name)
+                format_ident!("{}", param.name.to_snake_case())
             } else {
                 format_ident!("p{}", index)
             };
@@ -96,10 +97,16 @@ impl RustGenerator {
 
         static NULL: Vec<Parameter> = vec![];
 
-        for (_, param) in params.iter().enumerate() {
+        for (index, param) in params.iter().enumerate() {
+            let var_name = if param.name != "" {
+                format!("{}", param.name.to_snake_case())
+            } else {
+                format!("p{}", index)
+            };
+
             let token_stream = self.to_rlp_encode(
                 runtime_binder,
-                &param.name,
+                &var_name,
                 &param.r#type,
                 param.components.as_ref().unwrap_or(&NULL).as_slice(),
             )?;
@@ -184,7 +191,7 @@ impl RustGenerator {
     ) -> anyhow::Result<TokenStream> {
         if let Some(runtime_type) = runtime_binder.to_runtime_type(r#type)? {
             let runtime_type: TokenStream = runtime_type
-                .rlp_encode(var_name, "outputs")
+                .rlp_encode(var_name, "&mut outputs")
                 .parse()
                 .map_err(|err| anyhow::format_err!("{}", err))?;
 
@@ -215,7 +222,7 @@ impl RustGenerator {
     ) -> anyhow::Result<TokenStream> {
         if let Some(runtime_type) = runtime_binder.to_runtime_type(r#type)? {
             let runtime_type: TokenStream = runtime_type
-                .rlp_decode("inputs")
+                .rlp_decode("&mut inputs")
                 .parse()
                 .map_err(|err| anyhow::format_err!("{}", err))?;
 

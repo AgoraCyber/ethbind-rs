@@ -28,7 +28,7 @@ impl RustPretty for Contract {
 
             // Call rustfmt to fmt tmp file
             let mut child = Command::new(&rust_fmt_path)
-                .args([path.to_str().unwrap()])
+                .args(["--edition", "2021", path.to_str().unwrap()])
                 .spawn()?;
 
             child.wait()?;

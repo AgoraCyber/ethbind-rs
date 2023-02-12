@@ -24,7 +24,11 @@ impl ContractGenerator {
         self.fn_token_streams.push(token_stream);
     }
 
-    pub(crate) fn finalize(&self, rt_client: &TokenStream) -> anyhow::Result<Contract> {
+    pub(crate) fn finalize(
+        &self,
+        rt_client: &TokenStream,
+        rt_address: &TokenStream,
+    ) -> anyhow::Result<Contract> {
         let fn_token_streams = &self.fn_token_streams;
         // let event_token_streams = &self.event_token_streams;
         // let error_token_streams = &self.error_token_streams;
@@ -32,7 +36,7 @@ impl ContractGenerator {
         let ident = format_ident!("{}", &self.contract_name.to_upper_camel_case());
 
         let token_stream = quote! {
-            pub struct #ident(#rt_client);
+            pub struct #ident(#rt_client,#rt_address);
 
             impl #ident {
                 #(#fn_token_streams)*
