@@ -4,13 +4,13 @@ ethbind-rs is an ethereum contract binding code generation framework for arbitra
 
 ## Generator
 
-The binding processor generates arbitrary programming languages codes by calling the corresponding `generator`,The code generator is a rust structure that implements [`Generator`](src/gen.rs) trait.
+The binding processor generates arbitrary programming languages codes by calling the corresponding `generator`,The code generator is a rust structure that implements [`Generator`](gen/src/lib.rs) trait.
 
-So far, the only official generator is the `rust` bind code [`Generator`](src/gen/rust.rs), you can easily use this generator in your Rust code in two ways:
+So far, the only official generator is the `rust` bind code [`Generator`](rust/src/gen/mod.rs), you can easily use this generator in your Rust code in two ways:
 
 ### via proc-macro
 
-Using the builtin [`proc-macro`](https://doc.rust-lang.org/reference/procedural-macros.html) contract!($name,$abi_file_path) to directly derive contract bind interface in your rust code, e.g:
+Using the builtin [`proc-macro`](https://doc.rust-lang.org/reference/procedural-macros.html) contract!($binder_json_path,$abi_json_path) to directly derive contract bind interface in your rust code, e.g:
 
 ```rust
 contract!(Lock,include_str!("xxx/Lock.json"));
