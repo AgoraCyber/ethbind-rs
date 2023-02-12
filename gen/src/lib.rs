@@ -113,7 +113,7 @@ pub trait Generator {
     ) -> anyhow::Result<()>;
 
     /// Close generator and return generated contract codes.
-    fn finalize(self) -> Vec<Contract>;
+    fn finalize<R: RuntimeBinder>(self, runtime_binder: &mut R) -> anyhow::Result<Vec<Contract>>;
 }
 
 /// Generated contract files archive
@@ -433,8 +433,14 @@ impl RuntimeBinder for JsonRuntimeBinder {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JsonRuntimeType {
     declare_type: String,
+    #[serde(default = "default_json_runtime_type_field")]
     rlp_encode: String,
+    #[serde(default = "default_json_runtime_type_field")]
     rlp_decode: String,
+}
+
+fn default_json_runtime_type_field() -> String {
+    "".to_owned()
 }
 
 impl RuntimeType for JsonRuntimeType {
@@ -610,9 +616,9 @@ impl<C: Context> BindingBuilder<C> {
             builder(&mut self.context)?;
         }
 
-        let (generator, _) = self.context.finalize();
+        let (generator, mut runtime_binder) = self.context.finalize();
 
-        Ok(generator.finalize())
+        Ok(generator.finalize(&mut runtime_binder)?)
     }
 }
 

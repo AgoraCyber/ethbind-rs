@@ -1,0 +1,22 @@
+[package]
+name = "ethbind-rust-macros"
+license-file.workspace = true
+edition.workspace = true
+version.workspace = true
+description = "proc-macro support for ethbind rust generator "
+documentation = "https://docs.rs/ethbind-rust-macros"
+
+
+[lib]
+proc-macro = true
+
+[dependencies]
+heck = "0.4"
+syn = { version = "^1", features = ["full"] }
+quote = "^1"
+proc-macro2 = "^1"
+
+ethbind-rust = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }

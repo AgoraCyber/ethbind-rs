@@ -1,4 +1,7 @@
+use ethbind_gen::{Contract, File};
+use heck::ToUpperCamelCase;
 use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
 
 #[derive(Debug, Default)]
 #[allow(unused)]
@@ -19,5 +22,28 @@ impl ContractGenerator {
 
     pub(crate) fn add_fn_token_stream(&mut self, token_stream: TokenStream) {
         self.fn_token_streams.push(token_stream);
+    }
+
+    pub(crate) fn finalize(&self, rt_client: &TokenStream) -> anyhow::Result<Contract> {
+        let fn_token_streams = &self.fn_token_streams;
+        // let event_token_streams = &self.event_token_streams;
+        // let error_token_streams = &self.error_token_streams;
+
+        let ident = format_ident!("{}", &self.contract_name.to_upper_camel_case());
+
+        let token_stream = quote! {
+            pub struct #ident(#rt_client);
+
+            impl #ident {
+                #(#fn_token_streams)*
+            }
+        };
+
+        Ok(Contract {
+            files: vec![File {
+                name: self.contract_name.clone(),
+                data: token_stream.to_string(),
+            }],
+        })
     }
 }

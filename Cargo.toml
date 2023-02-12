@@ -1,5 +1,5 @@
 [workspace]
-members = ["json", "gen", "rust"]
+members = ["json", "gen", "rust", "rust/macros"]
 
 [workspace.package]
 version = "0.1.0"
@@ -30,6 +30,8 @@ anyhow = "^1"
 #sub crates
 ethbind-json = { path = "./json", version = "^0.1" }
 ethbind-gen = { path = "./gen", version = "^0.1" }
+ethbind-rust = { path = "./rust", version = "^0.1" }
+ethbind-rust-macros = { path = "./rust/macros", version = "^0.1" }
 
 #rust code generation
 quote = "^1"
@@ -38,3 +40,8 @@ proc-macro2 = "^1"
 
 heck = "^0.4"
 sha3 = "0.10.6"
+
+
+dotenv = "0.15.0"
+pretty_env_logger = "0.4.0"
+log = "0.4.16"

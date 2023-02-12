@@ -1,6 +1,6 @@
 use ethbind_gen::Generator;
 use ethbind_json::*;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::RustGenerator;
 
@@ -24,8 +24,19 @@ impl Generator for RustGenerator {
         Ok(())
     }
 
-    fn finalize(self) -> Vec<ethbind_gen::Contract> {
-        unimplemented!()
+    fn finalize<R: ethbind_gen::RuntimeBinder>(
+        self,
+        runtime_binder: &mut R,
+    ) -> anyhow::Result<Vec<ethbind_gen::Contract>> {
+        let client_type = self.to_runtime_type_token_stream(runtime_binder, "rt_client")?;
+
+        let mut contracts = vec![];
+
+        for c in &self.contracts {
+            contracts.push(c.finalize(&client_type)?);
+        }
+
+        Ok(contracts)
     }
 
     fn generate_deploy<R: ethbind_gen::RuntimeBinder>(
@@ -53,20 +64,22 @@ impl Generator for RustGenerator {
         let rlp_encode_list = self.to_rlp_encode_list(runtime_binder, &contructor.inputs)?;
 
         self.current_contract().add_fn_token_stream(quote! {
-            pub fn deploy_contract<C, #(#generic_list,)* Ops>(client: C, #(#param_list,)* ops: Ops) -> Result<#receipt_type,#error_type>
-            where C: TryInto<#client_type>, C::Error: std::error::Error + Syn + Send + 'static,
-            Ops: TryInto<#opts_type>, Ops::Error: std::error::Error + Syn + Send + 'static,
+            pub async fn deploy_contract<C, #(#generic_list,)* Ops>(client: C, #(#param_list,)* ops: Ops) -> Result<Self,#error_type>
+            where C: TryInto<#client_type>, C::Error: std::error::Error + Sync + Send + 'static,
+            Ops: TryInto<#opts_type>, Ops::Error: std::error::Error + Sync + Send + 'static,
             #(#where_clause_list,)*
             {
-                let client = client.try_into()?;
+                let mut client = client.try_into()?;
                 #(#try_into_list;)*
                 let ops = ops.try_into()?;
 
-                let outputs = client.rlp_encoder();
+                let mut outputs = client.rlp_encoder();
 
                 #(#rlp_encode_list;)*
 
-                client.deploy_contract(outputs,#deploy_bytes)
+                let address = client.deploy_contract(outputs,#deploy_bytes,ops).await?;
+
+                Self(client,address)
             }
         });
 
@@ -92,8 +105,75 @@ impl Generator for RustGenerator {
     fn generate_fn<R: ethbind_gen::RuntimeBinder>(
         &mut self,
         runtime_binder: &mut R,
-        r#fn: &Function,
+        function: &Function,
     ) -> anyhow::Result<()> {
+        log::debug!("genearte fn {}", function.name);
+
+        let opts_type = self.to_runtime_type_token_stream(runtime_binder, "rt_opts")?;
+
+        let error_type = self.to_runtime_type_token_stream(runtime_binder, "rt_error")?;
+
+        let receipt_type = self.to_runtime_type_token_stream(runtime_binder, "rt_receipt")?;
+
+        let generic_list = self.to_generic_list(runtime_binder, &function.inputs)?;
+
+        let param_list = self.to_param_list(runtime_binder, &function.inputs)?;
+
+        let where_clause_list = self.to_where_clause_list(runtime_binder, &function.inputs)?;
+
+        let try_into_list = self.to_try_into_list(runtime_binder, &function.inputs)?;
+
+        let rlp_encode_list = self.to_rlp_encode_list(runtime_binder, &function.inputs)?;
+
+        let outputs_type = self.to_outputs_type(runtime_binder, &function.inputs)?;
+
+        let rlp_decode_list = self.to_rlp_decode_list(runtime_binder, &function.inputs)?;
+
+        let fn_ident = format_ident!("{}", function.name);
+
+        let send_transaction = match function.state_mutability {
+            StateMutability::Pure | StateMutability::View => false,
+            _ => true,
+        };
+
+        if send_transaction {
+            self.current_contract().add_fn_token_stream(quote! {
+                pub async fn #fn_ident<Ops, #(#generic_list,)* >(&mut self, #(#param_list,)* ops: Ops) -> Result<#receipt_type,#error_type>
+                where Ops: TryInto<#opts_type>, Ops::Error: std::error::Error + Sync + Send + 'static,
+                #(#where_clause_list,)*
+                {
+                    #(#try_into_list;)*
+                    let ops = ops.try_into()?;
+
+                    let mut outputs = client.rlp_encoder();
+
+                    #(#rlp_encode_list;)*
+
+                    // let to_contract = self.1.clone();
+
+                    self.0.send_raw_transaction(outputs,self.1, outputs).await
+                }
+            });
+        } else {
+            self.current_contract().add_fn_token_stream(quote! {
+                pub async fn #fn_ident<Ops, #(#generic_list,)* >(&self, #(#param_list,)*) -> Result<#outputs_type,#error_type>
+                where #(#where_clause_list,)*
+                {
+                    let mut client = client.try_into()?;
+                    #(#try_into_list;)*
+                    let ops = ops.try_into()?;
+
+                    let mut outputs = client.rlp_encoder();
+
+                    #(#rlp_encode_list;)*
+
+                    let inputs = self.0.eth_call(self.1, outputs).await?;
+
+                    Ok(#rlp_decode_list)
+                }
+            });
+        }
+
         Ok(())
     }
 }
