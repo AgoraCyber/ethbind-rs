@@ -50,6 +50,8 @@ impl Generator for RustGenerator {
 
         let try_into_list = self.to_try_into_list(runtime_binder, &contructor.inputs)?;
 
+        let rlp_encode_list = self.to_rlp_encode_list(runtime_binder, &contructor.inputs)?;
+
         self.current_contract().add_fn_token_stream(quote! {
             pub fn deploy_contract<C, #(#generic_list,)* Ops>(client: C, #(#param_list,)* ops: Ops) -> Result<#receipt_type,#error_type>
             where C: TryInto<#client_type>, C::Error: std::error::Error + Syn + Send + 'static,
@@ -59,8 +61,12 @@ impl Generator for RustGenerator {
                 let client = client.try_into()?;
                 #(#try_into_list;)*
                 let ops = ops.try_into()?;
-                
-                unimplemented!()
+
+                let outputs = client.rlp_encoder();
+
+                #(#rlp_encode_list;)*
+
+                client.deploy_contract(outputs,#deploy_bytes)
             }
         });
 

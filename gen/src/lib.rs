@@ -53,7 +53,7 @@ pub trait RuntimeType {
     /// Type grammar when declare. e.g, `Vec<u8>`
     fn declare_type(&self) -> &str;
     /// Rlp encode calling syntax, parameter `variable_name` is the name of variable to encode
-    fn rlp_encode(&self, variable_name: &str) -> String;
+    fn rlp_encode(&self, variable_name: &str, outputs_variable_name: &str) -> String;
     /// Rlp decode calling syntax, parameter `inputs_variable_name` is the name of variable for `input data`
     fn rlp_decode(&self, inputs_variable_name: &str) -> String;
 }
@@ -432,8 +432,10 @@ impl RuntimeType for JsonRuntimeType {
         self.rlp_decode.replace("$inputs", inputs_variable_name)
     }
 
-    fn rlp_encode(&self, variable_name: &str) -> String {
-        self.rlp_encode.replace("$var", variable_name)
+    fn rlp_encode(&self, variable_name: &str, outputs_variable_name: &str) -> String {
+        self.rlp_encode
+            .replace("$var", variable_name)
+            .replace("$outputs", outputs_variable_name)
     }
 }
 

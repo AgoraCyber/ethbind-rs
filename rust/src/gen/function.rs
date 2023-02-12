@@ -72,7 +72,24 @@ impl RustGenerator {
         for (_, param) in params.iter().enumerate() {
             let var_ident = format_ident!("{}", param.name.to_kebab_case());
 
-            token_streams.push(quote!(let #var_ident = #var_ident.try_into()?;));
+            token_streams.push(quote!(let #var_ident = #var_ident.try_into()?));
+        }
+
+        Ok(token_streams)
+    }
+
+    /// Convert fn param list to rlp encode statement
+    pub(crate) fn to_rlp_encode_list<R: ethbind_gen::RuntimeBinder>(
+        &self,
+        runtime_binder: &mut R,
+        params: &[Parameter],
+    ) -> anyhow::Result<Vec<TokenStream>> {
+        let mut token_streams = vec![];
+
+        for (_, param) in params.iter().enumerate() {
+            let token_stream = self.to_rlp_encode(runtime_binder, param)?;
+
+            token_streams.push(quote!(#token_stream));
         }
 
         Ok(token_streams)
@@ -80,6 +97,15 @@ impl RustGenerator {
 
     #[allow(unused)]
     pub(crate) fn to_rust_type<R: ethbind_gen::RuntimeBinder>(
+        &self,
+        runtime_binder: &mut R,
+        param: &Parameter,
+    ) -> anyhow::Result<TokenStream> {
+        unimplemented!()
+    }
+
+    #[allow(unused)]
+    pub(crate) fn to_rlp_encode<R: ethbind_gen::RuntimeBinder>(
         &self,
         runtime_binder: &mut R,
         param: &Parameter,
