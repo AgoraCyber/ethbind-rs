@@ -1,6 +1,6 @@
 use ethbind_gen::Generator;
 use ethbind_json::*;
-use heck::ToSnakeCase;
+use heck::{ToSnakeCase, ToUpperCamelCase};
 use quote::{format_ident, quote};
 
 use crate::RustGenerator;
@@ -72,7 +72,7 @@ impl Generator for RustGenerator {
         let rlp_encode_list = self.to_rlp_encode_list(runtime_binder, &contructor.inputs)?;
 
         self.current_contract().add_fn_token_stream(quote! {
-            pub async fn deploy_contract<C, #(#generic_list,)* Ops>(client: C, #(#param_list,)* ops: Ops) -> Result<Self,#error_type>
+            pub async fn deploy_contract<C, #(#generic_list,)* Ops>(client: C, #(#param_list,)* ops: Ops) -> std::result::Result<Self,#error_type>
             where C: TryInto<#client_type>, C::Error: std::error::Error + Sync + Send + 'static,
             Ops: TryInto<#opts_type>, Ops::Error: std::error::Error + Sync + Send + 'static,
             #(#where_clause_list,)*
@@ -110,6 +110,34 @@ impl Generator for RustGenerator {
         runtime_binder: &mut R,
         event: &Event,
     ) -> anyhow::Result<()> {
+        log::trace!("generate event {}", event.name);
+
+        let event_field_list = self.to_event_field_list(runtime_binder, &event.inputs)?;
+
+        let error_type = self.to_runtime_type_token_stream(runtime_binder, "rt_error")?;
+
+        let rlp_decodable =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_rlp_decodable")?;
+
+        let rlp_encodable =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_rlp_encodable")?;
+
+        let event_ident = format_ident!(
+            "{}{}",
+            self.current_contract().contract_name.to_upper_camel_case(),
+            event.name.to_upper_camel_case()
+        );
+
+        self.current_contract().add_event_token_stream(quote! {
+            pub struct #event_ident {
+                #(#event_field_list,)*
+            }
+
+            impl #event_ident {
+
+            }
+        });
+
         Ok(())
     }
 
@@ -118,7 +146,7 @@ impl Generator for RustGenerator {
         runtime_binder: &mut R,
         function: &Function,
     ) -> anyhow::Result<()> {
-        log::debug!("genearte fn {}", function.name);
+        log::trace!("genearte fn {}", function.name);
 
         let opts_type = self.to_runtime_type_token_stream(runtime_binder, "rt_opts")?;
 
@@ -155,7 +183,7 @@ impl Generator for RustGenerator {
 
         if send_transaction {
             self.current_contract().add_fn_token_stream(quote! {
-                pub async fn #fn_ident<Ops, #(#generic_list,)* >(&self, #(#param_list,)* ops: Ops) -> Result<#receipt_type,#error_type>
+                pub async fn #fn_ident<Ops, #(#generic_list,)* >(&self, #(#param_list,)* ops: Ops) -> std::result::Result<#receipt_type,#error_type>
                 where Ops: TryInto<#opts_type>, Ops::Error: std::error::Error + Sync + Send + 'static,
                 #(#where_clause_list,)*
                 {
@@ -175,7 +203,7 @@ impl Generator for RustGenerator {
             });
         } else {
             self.current_contract().add_fn_token_stream(quote! {
-                pub async fn #fn_ident<#(#generic_list,)* >(&self, #(#param_list,)*) -> Result<#outputs_type,#error_type>
+                pub async fn #fn_ident<#(#generic_list,)* >(&self, #(#param_list,)*) -> std::result::Result<#outputs_type,#error_type>
                 where #(#where_clause_list,)*
                 {
                     use #rlp_decodable;

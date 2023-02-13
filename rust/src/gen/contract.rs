@@ -6,7 +6,7 @@ use quote::{format_ident, quote};
 #[derive(Debug, Default)]
 #[allow(unused)]
 pub(crate) struct ContractGenerator {
-    contract_name: String,
+    pub(crate) contract_name: String,
     fn_token_streams: Vec<TokenStream>,
     event_token_streams: Vec<TokenStream>,
     error_token_streams: Vec<TokenStream>,
@@ -24,13 +24,17 @@ impl ContractGenerator {
         self.fn_token_streams.push(token_stream);
     }
 
+    pub(crate) fn add_event_token_stream(&mut self, token_stream: TokenStream) {
+        self.event_token_streams.push(token_stream);
+    }
+
     pub(crate) fn finalize(
         &self,
         rt_client: &TokenStream,
         rt_address: &TokenStream,
     ) -> anyhow::Result<Contract> {
         let fn_token_streams = &self.fn_token_streams;
-        // let event_token_streams = &self.event_token_streams;
+        let event_token_streams = &self.event_token_streams;
         // let error_token_streams = &self.error_token_streams;
 
         let ident = format_ident!("{}", &self.contract_name.to_upper_camel_case());
@@ -41,6 +45,8 @@ impl ContractGenerator {
             impl #ident {
                 #(#fn_token_streams)*
             }
+
+            #(#event_token_streams)*
         };
 
         Ok(Contract {

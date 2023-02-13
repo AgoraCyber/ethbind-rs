@@ -63,5 +63,17 @@
   },
   "rt_rlp_encodable": {
     "declare_type": "mock::RlpEncodable"
+  },
+  "rt_log_decodable": {
+    "declare_type": "mock::LogDecodable"
+  },
+  "rt_log_decoder": {
+    "declare_type": "mock::LogDecoder"
+  },
+  "rt_log_encodable": {
+    "declare_type": "mock::LogEncodable"
+  },
+  "rt_log_encoder": {
+    "declare_type": "mock::LogEncoder"
   }
 }

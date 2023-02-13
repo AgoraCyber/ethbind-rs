@@ -38,3 +38,6 @@ pub use function::*;
 
 mod contract;
 use contract::*;
+
+mod event;
+pub use event::*;
