@@ -114,7 +114,14 @@ impl Generator for RustGenerator {
 
         let event_field_list = self.to_event_field_list(runtime_binder, &event.inputs)?;
 
+        let decode_token_streams = self.to_event_docode_token_streams(runtime_binder, event)?;
+
         let error_type = self.to_runtime_type_token_stream(runtime_binder, "rt_error")?;
+
+        let log_decodable =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_log_decodable")?;
+
+        let log_decoder = self.to_runtime_type_token_stream(runtime_binder, "rt_log_decoder")?;
 
         let rlp_decodable =
             self.to_runtime_type_token_stream(runtime_binder, "rt_rlp_decodable")?;
@@ -128,13 +135,17 @@ impl Generator for RustGenerator {
             event.name.to_upper_camel_case()
         );
 
+        let error_type = self.to_runtime_type_token_stream(runtime_binder, "rt_error")?;
+
         self.current_contract().add_event_token_stream(quote! {
             pub struct #event_ident {
                 #(#event_field_list,)*
             }
 
-            impl #event_ident {
-
+            impl #log_decodable for #event_ident {
+                fn decode(decoder: &mut #log_decoder) -> std::result::Result<Self,#error_type> {
+                    #(#decode_token_streams;)*
+                }
             }
         });
 

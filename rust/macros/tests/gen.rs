@@ -115,6 +115,12 @@ mod mock {
             [0; LEN]
         }
     }
+
+    pub trait LogDecodable: Sized {
+        fn decode(decoder: &mut LogDecoder) -> anyhow::Result<Self>;
+    }
+
+    pub struct LogDecoder {}
 }
 
 contract!("tests/mapping.json", "tests/abi.json");
