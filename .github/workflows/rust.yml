@@ -1,26 +1,26 @@
 name: Rust
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  release:
+    types: [published, edited]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   publish:
-    
     environment: cargo
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Publish crate
-      run: cargo publish
-
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
+      - name: publish ethbind-json
+        run: cargo publish -p ethbind-json
+      - name: publish ethbind-gen
+        run: cargo publish -p ethbind-gen
+      - name: publish ethbind-gen
+        run: cargo publish -p ethbind-rust
