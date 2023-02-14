@@ -31,8 +31,12 @@ jobs:
         run: cargo publish -p ethbind-gen
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      - name: publish ethbind-gen
+      - name: publish ethbind-rust
         run: cargo publish -p ethbind-rust
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: publish ethbind-rust-macros
+        run: cargo publish -p ethbind-rust-macros
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: publish ethbind

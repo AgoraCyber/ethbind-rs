@@ -1,12 +1,6 @@
 # ethbind-rs
 
-<div>
-<a href="https://crates.io/crates/async-std">
-    <img src="https://img.shields.io/crates/v/async-std.svg?style=flat-square"
-    alt="Crates.io version" />
-</a>
-</div>
-
+[!["Crates.io version"](https://img.shields.io/crates/v/ethbind.svg?style=flat-square)](https://crates.io/crates/ethbind) [!["docs.rs docs"](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/ethbind)
 
 ethbind-rs is an ethereum contract binding code generation framework for arbitrary programming languages.
 
