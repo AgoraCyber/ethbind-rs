@@ -41,12 +41,14 @@ mod mock {
     #[derive(Debug, Default)]
     pub struct Address;
 
-    impl Address {
-        pub fn encode(&self, encoder: &mut RlpEncoder) {}
-
-        pub fn decode(decoder: &mut RlpDecoder) -> Self {
+    impl RlpDecodable for Address {
+        fn decode(decoder: &mut RlpDecoder) -> Self {
             Default::default()
         }
+    }
+
+    impl RlpEncodable for Address {
+        fn encode(&self, encoder: &mut RlpEncoder) {}
     }
 
     #[derive(Debug, Default)]
@@ -63,16 +65,46 @@ mod mock {
     #[derive(Debug, Default)]
     pub struct RlpEncoder;
 
+    impl RlpEncoder {
+        pub fn rlp_start_encode_tuple(&mut self) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        pub fn rlp_end_encode_tuple(&mut self) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        pub fn rlp_encode<E: RlpEncodable>(&mut self, value: &E) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
     #[derive(Debug, Default)]
     pub struct RlpDecoder;
+
+    impl RlpDecoder {
+        pub fn rlp_start_decode_tuple(&mut self) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        pub fn rlp_end_decode_tuple(&mut self) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        pub fn rlp_decode<D: RlpDecodable>(&mut self) -> anyhow::Result<D> {
+            Ok(D::decode(self))
+        }
+    }
 
     #[derive(Debug, Default)]
     pub struct Int<const SIGN: bool, const LEN: usize>;
 
-    impl<const SIGN: bool, const LEN: usize> Int<SIGN, LEN> {
-        pub fn encode(&self, encoder: &mut RlpEncoder) {}
+    impl<const SIGN: bool, const LEN: usize> RlpEncodable for Int<SIGN, LEN> {
+        fn encode(&self, encoder: &mut RlpEncoder) {}
+    }
 
-        pub fn decode(decoder: &mut RlpDecoder) -> Self {
+    impl<const SIGN: bool, const LEN: usize> RlpDecodable for Int<SIGN, LEN> {
+        fn decode(decoder: &mut RlpDecoder) -> Self {
             Default::default()
         }
     }
@@ -80,10 +112,12 @@ mod mock {
     #[derive(Debug, Default)]
     pub struct Fixed<const SIGN: bool, const M: usize, const N: usize>;
 
-    impl<const SIGN: bool, const M: usize, const N: usize> Fixed<SIGN, M, N> {
-        pub fn encode(&self, encoder: &mut RlpEncoder) {}
+    impl<const SIGN: bool, const M: usize, const N: usize> RlpEncodable for Fixed<SIGN, M, N> {
+        fn encode(&self, encoder: &mut RlpEncoder) {}
+    }
 
-        pub fn decode(decoder: &mut RlpDecoder) -> Self {
+    impl<const SIGN: bool, const M: usize, const N: usize> RlpDecodable for Fixed<SIGN, M, N> {
+        fn decode(decoder: &mut RlpDecoder) -> Self {
             Default::default()
         }
     }
@@ -116,11 +150,32 @@ mod mock {
         }
     }
 
+    impl RlpEncodable for bool {
+        fn encode(&self, encoder: &mut RlpEncoder) {}
+    }
+
+    impl RlpDecodable for bool {
+        fn decode(decoder: &mut RlpDecoder) -> Self {
+            false
+        }
+    }
+
     pub trait LogDecodable: Sized {
         fn decode(decoder: &mut LogDecoder) -> anyhow::Result<Self>;
     }
 
-    pub struct LogDecoder {}
+    #[derive(Default)]
+    pub struct LogDecoder(RlpDecoder);
+
+    impl LogDecoder {
+        pub fn topic_rlp_decode<D: RlpDecodable>(&mut self, index: usize) -> anyhow::Result<D> {
+            Ok(D::decode(&mut RlpDecoder::default()))
+        }
+
+        pub fn data_decoder(&mut self) -> &mut RlpDecoder {
+            &mut self.0
+        }
+    }
 }
 
 contract!("tests/mapping.json", "tests/abi.json");

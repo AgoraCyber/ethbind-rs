@@ -86,7 +86,7 @@ impl Generator for RustGenerator {
 
                 let mut outputs = client.rlp_encoder();
 
-                #(#rlp_encode_list;)*
+                #rlp_encode_list
 
                 let address = client.deploy_contract(outputs,#deploy_bytes,ops).await?;
 
@@ -102,6 +102,7 @@ impl Generator for RustGenerator {
         runtime_binder: &mut R,
         error: &Error,
     ) -> anyhow::Result<()> {
+        // Skip generate error binding code
         Ok(())
     }
 
@@ -113,6 +114,8 @@ impl Generator for RustGenerator {
         log::trace!("generate event {}", event.name);
 
         let event_field_list = self.to_event_field_list(runtime_binder, &event.inputs)?;
+
+        let event_init_list = self.to_event_init_list(runtime_binder, &event.inputs)?;
 
         let decode_token_streams = self.to_event_docode_token_streams(runtime_binder, event)?;
 
@@ -144,7 +147,11 @@ impl Generator for RustGenerator {
 
             impl #log_decodable for #event_ident {
                 fn decode(decoder: &mut #log_decoder) -> std::result::Result<Self,#error_type> {
-                    #(#decode_token_streams;)*
+                    #decode_token_streams
+
+                    Ok(Self {
+                        #(#event_init_list,)*
+                    })
                 }
             }
         });
@@ -181,9 +188,9 @@ impl Generator for RustGenerator {
 
         let rlp_encode_list = self.to_rlp_encode_list(runtime_binder, &function.inputs)?;
 
-        let outputs_type = self.to_outputs_type(runtime_binder, &function.inputs)?;
+        let outputs_type = self.to_outputs_type(runtime_binder, &function.outputs)?;
 
-        let rlp_decode_list = self.to_rlp_decode_list(runtime_binder, &function.inputs)?;
+        let rlp_decode_list = self.to_rlp_decode_list(runtime_binder, &function.outputs)?;
 
         let fn_ident = format_ident!("{}", function.name.to_snake_case());
 
@@ -207,7 +214,7 @@ impl Generator for RustGenerator {
 
                     let mut outputs = self.0.rlp_encoder();
 
-                    #(#rlp_encode_list;)*
+                    #rlp_encode_list
 
                     self.0.send_raw_transaction(&self.1, outputs,ops).await
                 }
@@ -224,7 +231,7 @@ impl Generator for RustGenerator {
 
                     let mut outputs = self.0.rlp_encoder();
 
-                    #(#rlp_encode_list;)*
+                    #rlp_encode_list
 
                     let mut inputs = self.0.eth_call(&self.1, outputs).await?;
 

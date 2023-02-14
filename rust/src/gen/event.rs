@@ -28,11 +28,31 @@ impl RustGenerator {
         Ok(token_streams)
     }
 
+    pub(crate) fn to_event_init_list<R: ethbind_gen::RuntimeBinder>(
+        &self,
+        _runtime_binder: &mut R,
+        params: &[Parameter],
+    ) -> anyhow::Result<Vec<TokenStream>> {
+        let mut token_streams = vec![];
+
+        for (index, param) in params.iter().enumerate() {
+            let var_ident = if param.name != "" {
+                format_ident!("{}", param.name.to_snake_case())
+            } else {
+                format_ident!("p{}", index)
+            };
+
+            token_streams.push(quote!(#var_ident));
+        }
+
+        Ok(token_streams)
+    }
+
     pub(crate) fn to_event_docode_token_streams<R: ethbind_gen::RuntimeBinder>(
         &self,
         runtime_binder: &mut R,
         event: &Event,
-    ) -> anyhow::Result<Vec<TokenStream>> {
+    ) -> anyhow::Result<TokenStream> {
         let mut token_streams = vec![];
 
         let base_index = if event.anonymous { 0 } else { 1 };
@@ -52,7 +72,9 @@ impl RustGenerator {
                 }
                 _ => {
                     if param.indexed {
-                        token_streams.push(quote!());
+                        let index = base_index + index;
+                        token_streams
+                            .push(quote!(let #var_ident = decoder.topic_rlp_decode(#index)?));
                     } else {
                         let token_stream = self.decode_from_data(runtime_binder, param)?;
 
@@ -60,11 +82,9 @@ impl RustGenerator {
                     }
                 }
             }
-
-            token_streams.push(quote!())
         }
 
-        Ok(token_streams)
+        Ok(quote!(#(#token_streams;)*))
     }
 
     fn decode_from_data<R: ethbind_gen::RuntimeBinder>(
@@ -72,6 +92,26 @@ impl RustGenerator {
         runtime_binder: &mut R,
         parameter: &Parameter,
     ) -> anyhow::Result<TokenStream> {
-        unimplemented!()
+        if runtime_binder.to_runtime_type(&parameter.r#type)?.is_some() {
+            return Ok(quote!(decoder.data_decoder().rlp_decode()?));
+        } else {
+            let mut tuple_token_streams = vec![];
+
+            for c in parameter
+                .components
+                .as_ref()
+                .expect("Tuple componenets is None")
+                .iter()
+            {
+                tuple_token_streams.push(self.to_rlp_decode(runtime_binder, c)?);
+            }
+
+            return Ok(quote! {{
+                decoder.data_decoder().rlp_start_decode_tuple()?;
+                let result = (#(#tuple_token_streams,)*);
+                decoder.data_decoder().rlp_end_decode_tuple()?;
+                result
+            }});
+        }
     }
 }

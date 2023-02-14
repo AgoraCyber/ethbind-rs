@@ -1,79 +1,22 @@
 {
-  "bytes": {
-    "declare_type": "Vec<u8>",
-    "rlp_encode": "$var.encode($outputs)",
-    "rlp_decode": "Vec::<u8>::decode($inputs)"
-  },
-  "uint_m": {
-    "declare_type": "mock::Int<false,$m>",
-    "rlp_encode": "$var.encode($outputs)",
-    "rlp_decode": "mock::Int::<false,$m>::decode($inputs)"
-  },
-  "int_m": {
-    "declare_type": "mock::Int<true,$m>",
-    "rlp_encode": "$var.encode($outputs)",
-    "rlp_decode": "mock::Int::<true,$m>::decode($inputs)"
-  },
-  "fixed_m_n": {
-    "declare_type": "mock::Fixed<true,$m,$n>",
-    "rlp_encode": "$var.encode($outputs)",
-    "rlp_decode": "mock::Fixed::<true,$m,$n>::decode($inputs)"
-  },
-  "ufixed_m_n": {
-    "declare_type": "mock::Fixed<true,$m,$n>",
-    "rlp_encode": "$var.encode($outputs)",
-    "rlp_decode": "mock::Fixed::<true,$m,$n>::decode($inputs)"
-  },
-  "array_m": {
-    "declare_type": "[$el;$m]",
-    "rlp_encode": "$var.encode($outputs)",
-    "rlp_decode": "<[$el;$m]>::decode($inputs)"
-  },
-  "array": {
-    "declare_type": "Vec<$el>",
-    "rlp_encode": "$var.encode($outputs)",
-    "rlp_decode": "Vec<$el>::decode($inputs)"
-  },
-  "bytes_m": {
-    "declare_type": "[u8;$m]",
-    "rlp_encode": "$var.encode($outputs)",
-    "rlp_decode": "<[u8;$m]>::decode($inputs)"
-  },
-  "address": {
-    "declare_type": "mock::Address",
-    "rlp_encode": "$var.encode($outputs)",
-    "rlp_decode": "mock::Address::decode($inputs)"
-  },
-  "rt_client": {
-    "declare_type": "mock::Client",
-    "rlp_encode": "",
-    "rlp_decode": ""
-  },
-  "rt_error": {
-    "declare_type": "anyhow::Error"
-  },
-  "rt_opts": {
-    "declare_type": "mock::Ops"
-  },
-  "rt_receipt": {
-    "declare_type": "mock::TransactionReceipt"
-  },
-  "rt_rlp_decodable": {
-    "declare_type": "mock::RlpDecodable"
-  },
-  "rt_rlp_encodable": {
-    "declare_type": "mock::RlpEncodable"
-  },
-  "rt_log_decodable": {
-    "declare_type": "mock::LogDecodable"
-  },
-  "rt_log_decoder": {
-    "declare_type": "mock::LogDecoder"
-  },
-  "rt_log_encodable": {
-    "declare_type": "mock::LogEncodable"
-  },
-  "rt_log_encoder": {
-    "declare_type": "mock::LogEncoder"
-  }
+  "bytes": "Vec<u8>",
+  "bool": "bool",
+  "uint_m": "mock::Int<false,$m>",
+  "int_m": "mock::Int<true,$m>",
+  "fixed_m_n": "mock::Fixed<true,$m,$n>",
+  "ufixed_m_n": "mock::Fixed<true,$m,$n>",
+  "array_m": "[$el;$m]",
+  "array": "Vec<$el>",
+  "bytes_m": "[u8;$m]",
+  "address": "mock::Address",
+  "rt_client": "mock::Client",
+  "rt_error": "anyhow::Error",
+  "rt_opts": "mock::Ops",
+  "rt_receipt": "mock::TransactionReceipt",
+  "rt_rlp_decodable": "mock::RlpDecodable",
+  "rt_rlp_encodable": "mock::RlpEncodable",
+  "rt_log_decodable": "mock::LogDecodable",
+  "rt_log_decoder": "mock::LogDecoder",
+  "rt_log_encodable": "mock::LogEncodable",
+  "rt_log_encoder": "mock::LogEncoder"
 }

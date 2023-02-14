@@ -48,28 +48,15 @@ pub trait Context {
     fn finalize(self) -> (Self::Language, Self::Runtime);
 }
 
-/// Runtime type trait for [`RuntimeBinder`]
-pub trait RuntimeType {
-    /// Type grammar when declare. e.g, `Vec<u8>`
-    fn declare_type(&self) -> &str;
-    /// Rlp encode calling syntax, parameter `variable_name` is the name of variable to encode
-    fn rlp_encode(&self, variable_name: &str, outputs_variable_name: &str) -> String;
-    /// Rlp decode calling syntax, parameter `inputs_variable_name` is the name of variable for `input data`
-    fn rlp_decode(&self, inputs_variable_name: &str) -> String;
-}
-
 /// Binder for mapping contract type system to `target` programming language runtime type system.
 pub trait RuntimeBinder {
-    /// Runtime type.
-    type RuntimeType: RuntimeType;
-
-    /// Convert contract [`abi type`](Type) to [`runtime type`](RuntimeBinder::RuntimeType)
+    /// Convert contract [`abi type`](Type) to `runtime` type string
     ///
-    /// If the [`runtime type`](RuntimeBinder::RuntimeType) is tuple or array of tuple returns [`None`]
-    fn to_runtime_type(&mut self, r#type: &Type) -> anyhow::Result<Option<&Self::RuntimeType>>;
+    /// If the parameter `type` is tuple or array of tuple returns [`None`]
+    fn to_runtime_type(&mut self, r#type: &Type) -> anyhow::Result<Option<&str>>;
 
     /// Get runtime type by metadata `name`, If not found the implementation must return [`Err(BindError::UnknownType)`]
-    fn get(&mut self, name: &str) -> anyhow::Result<&Self::RuntimeType>;
+    fn get(&mut self, name: &str) -> anyhow::Result<&str>;
 }
 
 /// Programming language code generator supported by `Ethbind`.
@@ -162,10 +149,10 @@ impl SaveTo for Vec<Contract> {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JsonRuntimeBinder {
     #[serde(flatten)]
-    runtime_types: HashMap<String, JsonRuntimeType>,
+    runtime_types: HashMap<String, String>,
 
     #[serde(skip)]
-    components: HashMap<String, JsonRuntimeType>,
+    components: HashMap<String, String>,
 }
 
 impl FromStr for JsonRuntimeBinder {
@@ -215,18 +202,19 @@ impl JsonRuntimeBinder {
     }
 
     /// Try map contract abi basic types's `type_name` to [`runtime type`](JsonRuntimeType), if not found returns `Err(EthBindError::UnknownType)`
-    fn search_basic_type<T: AsRef<str>>(&self, type_name: T) -> anyhow::Result<&JsonRuntimeType> {
+    fn search_basic_type<T: AsRef<str>>(&self, type_name: T) -> anyhow::Result<&str> {
         self.runtime_types
             .get(type_name.as_ref())
+            .map(|c| c.as_str())
             .ok_or(BindError::UnknownType(type_name.as_ref().to_owned()).into())
     }
 
-    fn to_array_m(&mut self, element: &ArrayM) -> anyhow::Result<Option<&JsonRuntimeType>> {
+    fn to_array_m(&mut self, element: &ArrayM) -> anyhow::Result<Option<&str>> {
         let tag = element.to_string();
 
         // Returns exists runtime type
         if self.components.contains_key(&tag) {
-            return Ok(self.components.get(&tag));
+            return Ok(self.components.get(&tag).map(|c| c.as_str()));
         }
 
         let el_type = { self.to_runtime_type(&element.element)?.map(|c| c.clone()) };
@@ -235,39 +223,22 @@ impl JsonRuntimeBinder {
             return Ok(None);
         }
 
-        let el_type = el_type.unwrap();
+        let el_type = el_type.unwrap().to_owned();
 
         let runtime_type = self.search_basic_type("array_m")?;
 
         let m = element.m;
 
         let declare_type = runtime_type
-            .declare_type()
-            .replace("$el", el_type.declare_type())
+            .replace("$el", &el_type)
             .replace("$m", &m.to_string());
 
-        let rlp_encode = runtime_type
-            .rlp_encode
-            .replace("$el", &el_type.rlp_encode)
-            .replace("$m", &m.to_string());
+        self.components.insert(tag.clone(), declare_type);
 
-        let rlp_decode = runtime_type
-            .rlp_decode
-            .replace("$el", &el_type.declare_type)
-            .replace("$m", &m.to_string());
-
-        let rtype = JsonRuntimeType {
-            declare_type,
-            rlp_decode,
-            rlp_encode,
-        };
-
-        self.components.insert(tag.clone(), rtype);
-
-        Ok(self.components.get(&tag))
+        Ok(self.components.get(&tag).map(|c| c.as_str()))
     }
 
-    fn to_bytes_m(&mut self, m: usize) -> anyhow::Result<&JsonRuntimeType> {
+    fn to_bytes_m(&mut self, m: usize) -> anyhow::Result<&str> {
         let tag = format!("array{}", m);
 
         // Returns exists runtime type
@@ -277,29 +248,19 @@ impl JsonRuntimeBinder {
 
         let runtime_type = self.search_basic_type("bytes_m")?;
 
-        let declare_type = runtime_type.declare_type().replace("$m", &m.to_string());
+        let declare_type = runtime_type.replace("$m", &m.to_string());
 
-        let rlp_encode = runtime_type.rlp_encode.replace("$m", &m.to_string());
-
-        let rlp_decode = runtime_type.rlp_decode.replace("$m", &m.to_string());
-
-        let rtype = JsonRuntimeType {
-            declare_type,
-            rlp_decode,
-            rlp_encode,
-        };
-
-        self.components.insert(tag.clone(), rtype);
+        self.components.insert(tag.clone(), declare_type);
 
         Ok(self.components.get(&tag).unwrap())
     }
 
-    fn to_array(&mut self, element: &Array) -> anyhow::Result<Option<&JsonRuntimeType>> {
+    fn to_array(&mut self, element: &Array) -> anyhow::Result<Option<&str>> {
         let tag = element.to_string();
 
         // Returns exists runtime type
         if self.components.contains_key(&tag) {
-            return Ok(self.components.get(&tag));
+            return Ok(self.components.get(&tag).map(|c| c.as_str()));
         }
 
         let el_type = { self.to_runtime_type(&element.element)?.map(|c| c.clone()) };
@@ -308,32 +269,18 @@ impl JsonRuntimeBinder {
             return Ok(None);
         }
 
-        let el_type = el_type.unwrap().clone();
+        let el_type = el_type.unwrap().to_owned();
 
-        let runtime_type = self.search_basic_type("array")?;
+        let runtime_type = { self.search_basic_type("array")? };
 
-        let declare_type = runtime_type
-            .declare_type()
-            .replace("$el", el_type.declare_type());
+        let declare_type = runtime_type.replace("$el", &el_type);
 
-        let rlp_encode = runtime_type.rlp_encode.replace("$el", &el_type.rlp_encode);
+        self.components.insert(tag.clone(), declare_type);
 
-        let rlp_decode = runtime_type
-            .rlp_decode
-            .replace("$el", &el_type.declare_type);
-
-        let rtype = JsonRuntimeType {
-            declare_type,
-            rlp_decode,
-            rlp_encode,
-        };
-
-        self.components.insert(tag.clone(), rtype);
-
-        Ok(self.components.get(&tag))
+        Ok(self.components.get(&tag).map(|c| c.as_str()))
     }
 
-    fn to_fixed_m_n(&mut self, fixed: &FixedMN) -> anyhow::Result<&JsonRuntimeType> {
+    fn to_fixed_m_n(&mut self, fixed: &FixedMN) -> anyhow::Result<&str> {
         let tag = fixed.to_string();
 
         // Returns exists runtime type
@@ -344,32 +291,15 @@ impl JsonRuntimeBinder {
         let runtime_type = self.search_basic_type("fixed_m_n")?;
 
         let declare_type = runtime_type
-            .declare_type()
             .replace("$m", &fixed.m.to_string())
             .replace("$n", &fixed.n.to_string());
 
-        let rlp_encode = runtime_type
-            .rlp_encode
-            .replace("$m", &fixed.m.to_string())
-            .replace("$n", &fixed.n.to_string());
-
-        let rlp_decode = runtime_type
-            .rlp_decode
-            .replace("$m", &fixed.m.to_string())
-            .replace("$n", &fixed.n.to_string());
-
-        let rtype = JsonRuntimeType {
-            declare_type,
-            rlp_decode,
-            rlp_encode,
-        };
-
-        self.components.insert(tag.clone(), rtype);
+        self.components.insert(tag.clone(), declare_type);
 
         Ok(self.components.get(&tag).unwrap())
     }
 
-    fn to_integer_m(&mut self, integer_m: &IntegerM) -> anyhow::Result<&JsonRuntimeType> {
+    fn to_integer_m(&mut self, integer_m: &IntegerM) -> anyhow::Result<&str> {
         let tag = integer_m.to_string();
 
         // Returns exists runtime type
@@ -383,33 +313,16 @@ impl JsonRuntimeBinder {
             self.search_basic_type("uint_m")?
         };
 
-        let declare_type = runtime_type
-            .declare_type()
-            .replace("$m", &integer_m.m.to_string());
+        let declare_type = runtime_type.replace("$m", &integer_m.m.to_string());
 
-        let rlp_encode = runtime_type
-            .rlp_encode
-            .replace("$m", &integer_m.m.to_string());
-
-        let rlp_decode = runtime_type
-            .rlp_decode
-            .replace("$m", &integer_m.m.to_string());
-
-        let rtype = JsonRuntimeType {
-            declare_type,
-            rlp_decode,
-            rlp_encode,
-        };
-
-        self.components.insert(tag.clone(), rtype);
+        self.components.insert(tag.clone(), declare_type);
 
         Ok(self.components.get(&tag).unwrap())
     }
 }
 
 impl RuntimeBinder for JsonRuntimeBinder {
-    type RuntimeType = JsonRuntimeType;
-    fn to_runtime_type(&mut self, r#type: &Type) -> anyhow::Result<Option<&Self::RuntimeType>> {
+    fn to_runtime_type(&mut self, r#type: &Type) -> anyhow::Result<Option<&str>> {
         match r#type {
             Type::Simple(element) if element.is_tuple() => Ok(None),
             Type::Simple(element) => self.search_basic_type(element.to_string()).map(|c| Some(c)),
@@ -421,41 +334,11 @@ impl RuntimeBinder for JsonRuntimeBinder {
         }
     }
 
-    fn get(&mut self, name: &str) -> anyhow::Result<&Self::RuntimeType> {
+    fn get(&mut self, name: &str) -> anyhow::Result<&str> {
         Ok(self
             .runtime_types
             .get(name)
             .ok_or(BindError::UnknownType(name.to_string()))?)
-    }
-}
-
-/// Associated [`RuntimeType`] for [`JsonRuntimeBinder`]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct JsonRuntimeType {
-    declare_type: String,
-    #[serde(default = "default_json_runtime_type_field")]
-    rlp_encode: String,
-    #[serde(default = "default_json_runtime_type_field")]
-    rlp_decode: String,
-}
-
-fn default_json_runtime_type_field() -> String {
-    "".to_owned()
-}
-
-impl RuntimeType for JsonRuntimeType {
-    fn declare_type(&self) -> &str {
-        &self.declare_type
-    }
-
-    fn rlp_decode(&self, inputs_variable_name: &str) -> String {
-        self.rlp_decode.replace("$inputs", inputs_variable_name)
-    }
-
-    fn rlp_encode(&self, variable_name: &str, outputs_variable_name: &str) -> String {
-        self.rlp_encode
-            .replace("$var", variable_name)
-            .replace("$outputs", outputs_variable_name)
     }
 }
 
@@ -672,7 +555,9 @@ mod tests {
     #[test]
     fn test_json_runtime_binder() {
         let mut runtime_binder: JsonRuntimeBinder =
-            include_str!("./abi.json").parse().expect("Load abi");
+            include_str!("../../rust/macros/tests/mapping.json")
+                .parse()
+                .expect("Load abi");
 
         let t: Type = "uint256".parse().expect("Parse type string");
 
@@ -681,9 +566,7 @@ mod tests {
             .expect("Get runtime type")
             .expect("Is not tuple type");
 
-        assert_eq!(runtime_type.declare_type, "int<false,256>");
-        assert_eq!(runtime_type.rlp_encode, "$var.encode()");
-        assert_eq!(runtime_type.rlp_decode, "int::<false,256>::decode($inputs)");
+        assert_eq!(runtime_type, "mock::Int<false,256>");
 
         let t: Type = "fixed128x8".parse().expect("Parse type string");
 
@@ -692,12 +575,7 @@ mod tests {
             .expect("Get runtime type")
             .expect("Is not tuple type");
 
-        assert_eq!(runtime_type.declare_type, "fixed<true,128,8>");
-        assert_eq!(runtime_type.rlp_encode, "$var.encode()");
-        assert_eq!(
-            runtime_type.rlp_decode,
-            "fixed::<true,128,8>::decode($inputs)"
-        );
+        assert_eq!(runtime_type, "mock::Fixed<true,128,8>");
 
         let t: Type = "uint256[20]".parse().expect("Parse type string");
 
@@ -706,12 +584,7 @@ mod tests {
             .expect("Get runtime type")
             .expect("Is not tuple type");
 
-        assert_eq!(runtime_type.declare_type, "[int<false,256>;20]");
-        assert_eq!(runtime_type.rlp_encode, "$var.encode()");
-        assert_eq!(
-            runtime_type.rlp_decode,
-            "<[int<false,256>;20]>::decode($inputs)"
-        );
+        assert_eq!(runtime_type, "[mock::Int<false,256>;20]");
 
         let t: Type = "uint256[]".parse().expect("Parse type string");
 
@@ -720,12 +593,7 @@ mod tests {
             .expect("Get runtime type")
             .expect("Is not tuple type");
 
-        assert_eq!(runtime_type.declare_type, "Vec<int<false,256>>");
-        assert_eq!(runtime_type.rlp_encode, "$var.encode()");
-        assert_eq!(
-            runtime_type.rlp_decode,
-            "Vec<int<false,256>>::decode($inputs)"
-        );
+        assert_eq!(runtime_type, "Vec<mock::Int<false,256>>");
 
         let t: Type = "bytes24".parse().expect("Parse type string");
 
@@ -734,9 +602,7 @@ mod tests {
             .expect("Get runtime type")
             .expect("Is not tuple type");
 
-        assert_eq!(runtime_type.declare_type, "[u8;24]");
-        assert_eq!(runtime_type.rlp_encode, "$var.encode()");
-        assert_eq!(runtime_type.rlp_decode, "<[u8;24]>::decode($inputs)");
+        assert_eq!(runtime_type, "[u8;24]");
 
         let t: Type = "address".parse().expect("Parse type string");
 
@@ -745,8 +611,6 @@ mod tests {
             .expect("Get runtime type")
             .expect("Is not tuple type");
 
-        assert_eq!(runtime_type.declare_type, "Address");
-        assert_eq!(runtime_type.rlp_encode, "$var.encode()");
-        assert_eq!(runtime_type.rlp_decode, "Address::decode($inputs)");
+        assert_eq!(runtime_type, "mock::Address");
     }
 }

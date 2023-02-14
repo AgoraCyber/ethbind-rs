@@ -4,15 +4,18 @@ pub use gen::*;
 mod pretty;
 pub use pretty::*;
 
+mod token_stream;
+pub use token_stream::*;
+
+mod error;
+pub use error::*;
+
 pub type BindingBuilder = ethbind_gen::BindingBuilder<
     ethbind_gen::Executor<RustGenerator, ethbind_gen::JsonRuntimeBinder>,
 >;
 
 pub use ethbind_gen::*;
 pub use ethbind_json::*;
-
-mod token_stream;
-pub use token_stream::*;
 
 #[cfg(test)]
 mod tests {

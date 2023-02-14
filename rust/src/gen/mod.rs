@@ -23,14 +23,12 @@ impl RustGenerator {
     ) -> anyhow::Result<TokenStream> {
         Ok(runtime_binder
             .get(name)?
-            .declare_type()
             .parse()
             .map_err(|e| anyhow::format_err!("{}", e))?)
     }
 }
 
 mod generator;
-use ethbind_gen::RuntimeType;
 pub use generator::*;
 
 mod function;

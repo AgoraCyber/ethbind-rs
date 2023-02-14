@@ -1,4 +1,3 @@
-use ethbind_gen::RuntimeType;
 use ethbind_json::{Parameter, Type};
 use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
@@ -92,7 +91,7 @@ impl RustGenerator {
         &self,
         runtime_binder: &mut R,
         params: &[Parameter],
-    ) -> anyhow::Result<Vec<TokenStream>> {
+    ) -> anyhow::Result<TokenStream> {
         let mut token_streams = vec![];
 
         static NULL: Vec<Parameter> = vec![];
@@ -114,7 +113,11 @@ impl RustGenerator {
             token_streams.push(quote!(#token_stream));
         }
 
-        Ok(token_streams)
+        Ok(quote! {
+            outputs.rlp_start_encode_tuple()?;
+            #(#token_streams)*
+            outputs.rlp_end_encode_tuple()?;
+        })
     }
 
     pub(crate) fn to_rlp_decode_list<R: ethbind_gen::RuntimeBinder>(
@@ -124,19 +127,22 @@ impl RustGenerator {
     ) -> anyhow::Result<TokenStream> {
         let mut token_streams = vec![];
 
-        static NULL: Vec<Parameter> = vec![];
-
         for (_, param) in params.iter().enumerate() {
-            let token_stream = self.to_rlp_decode(
-                runtime_binder,
-                &param.r#type,
-                param.components.as_ref().unwrap_or(&NULL).as_slice(),
-            )?;
+            let token_stream = self.to_rlp_decode(runtime_binder, param)?;
 
             token_streams.push(quote!(#token_stream));
         }
 
-        Ok(quote!((#(#token_streams,)*)))
+        if params.len() <= 1 {
+            return Ok(quote! (#(#token_streams)*));
+        } else {
+            return Ok(quote! {{
+                inputs.rlp_start_decode_tuple()?;
+                let result = (#(#token_streams,)*);
+                inputs.rlp_end_decode_tuple()?;
+                result
+            }});
+        }
     }
 
     #[allow(unused)]
@@ -147,7 +153,6 @@ impl RustGenerator {
     ) -> anyhow::Result<TokenStream> {
         if let Some(runtime_type) = runtime_binder.to_runtime_type(&param.r#type)? {
             let runtime_type: TokenStream = runtime_type
-                .declare_type()
                 .parse()
                 .map_err(|err| anyhow::format_err!("{}", err))?;
 
@@ -174,11 +179,16 @@ impl RustGenerator {
         outputs: &[Parameter],
     ) -> anyhow::Result<TokenStream> {
         let mut tuple_token_streams = vec![];
+
         for param in outputs {
             tuple_token_streams.push(self.to_rust_type(runtime_binder, param)?);
         }
 
-        Ok(quote!((#(#tuple_token_streams,)*)))
+        if outputs.len() <= 1 {
+            Ok(quote!(#(#tuple_token_streams)*))
+        } else {
+            Ok(quote!((#(#tuple_token_streams,)*)))
+        }
     }
 
     #[allow(unused)]
@@ -189,13 +199,11 @@ impl RustGenerator {
         r#type: &Type,
         components: &[Parameter],
     ) -> anyhow::Result<TokenStream> {
-        if let Some(runtime_type) = runtime_binder.to_runtime_type(r#type)? {
-            let runtime_type: TokenStream = runtime_type
-                .rlp_encode(var_name, "&mut outputs")
-                .parse()
-                .map_err(|err| anyhow::format_err!("{}", err))?;
+        if let Some(_) = runtime_binder.to_runtime_type(r#type)? {
+            let var_ident: TokenStream =
+                var_name.parse().map_err(|e| anyhow::format_err!("{}", e))?;
 
-            return Ok(runtime_type);
+            return Ok(quote!(outputs.rlp_encode(&#var_ident)?;));
         } else {
             let mut tuple_token_streams = vec![];
 
@@ -210,37 +218,39 @@ impl RustGenerator {
                 )?);
             }
 
-            return Ok(quote!((#(#tuple_token_streams,)*)));
+            return Ok(quote! {
+                outputs.rlp_start_encode_tuple()?;
+                #(#tuple_token_streams)*
+                outputs.rlp_end_encode_tuple()?;
+            });
         }
     }
 
     pub(crate) fn to_rlp_decode<R: ethbind_gen::RuntimeBinder>(
         &self,
         runtime_binder: &mut R,
-        r#type: &Type,
-        components: &[Parameter],
+        parameter: &Parameter,
     ) -> anyhow::Result<TokenStream> {
-        if let Some(runtime_type) = runtime_binder.to_runtime_type(r#type)? {
-            let runtime_type: TokenStream = runtime_type
-                .rlp_decode("&mut inputs")
-                .parse()
-                .map_err(|err| anyhow::format_err!("{}", err))?;
-
-            return Ok(runtime_type);
+        if runtime_binder.to_runtime_type(&parameter.r#type)?.is_some() {
+            return Ok(quote!(inputs.rlp_decode()?));
         } else {
             let mut tuple_token_streams = vec![];
 
-            static NULL: Vec<Parameter> = vec![];
-
-            for c in components.iter() {
-                tuple_token_streams.push(self.to_rlp_decode(
-                    runtime_binder,
-                    &c.r#type,
-                    c.components.as_ref().unwrap_or(&NULL).as_slice(),
-                )?);
+            for c in parameter
+                .components
+                .as_ref()
+                .expect("Tuple componenets is None")
+                .iter()
+            {
+                tuple_token_streams.push(self.to_rlp_decode(runtime_binder, c)?);
             }
 
-            return Ok(quote!((#(#tuple_token_streams,)*)));
+            return Ok(quote! {{
+                inputs.rlp_start_decode_tuple()?;
+                let result = (#(#tuple_token_streams,)*);
+                inputs.rlp_end_decode_tuple()?;
+                result
+            }});
         }
     }
 }
