@@ -9,8 +9,11 @@ env:
 
 jobs:
   publish:
-    environment: cargo
     runs-on: ubuntu-latest
+
+    name: "publish"
+
+    environment: cargo
 
     steps:
       - uses: actions/checkout@v3
@@ -22,7 +25,13 @@ jobs:
         run: cargo test --verbose
       - name: publish ethbind-json
         run: cargo publish -p ethbind-json
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: publish ethbind-gen
         run: cargo publish -p ethbind-gen
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: publish ethbind-gen
         run: cargo publish -p ethbind-rust
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
