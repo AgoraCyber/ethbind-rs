@@ -35,5 +35,7 @@ mod tests {
             .expect("Generate data");
 
         contracts.pretty().expect("Pretty");
+
+        // contracts.save_to("./");
     }
 }

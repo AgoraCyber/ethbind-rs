@@ -15,7 +15,7 @@ So far, the only official generator is the `rust` bind code [`Generator`](rust/s
 Using the builtin [`proc-macro`](https://doc.rust-lang.org/reference/procedural-macros.html) contract!($binder_json_path,$abi_json_path) to directly derive contract bind interface in your rust code, e.g:
 
 ```rust
-contract!(Lock,include_str!("xxx/Lock.json"));
+contract!(include_str!("xxx/binder.json"),include_str!("xxx/Lock.json"));
 ```
 
 The above line of rust code will generating `Lock` contract bind codes **in place** via loading contract abi from `Lock.json` file.
@@ -36,20 +36,29 @@ ethbind-rs = "^0.1"
 ```rust
 
 /// + use rust `gen_codes` fn
-use ethbind_rs::gen::rust::gen_codes;
+use ethbind::gen::JsonRuntimeBinder;
+use ethbind::rust::*;
 
 fn main() {
     
 
     println!("cargo:rerun-if-changed=sol");
 
-    // + define inputs abi files
-    let abi_json_files = vec!["xxx/1.json","xxx/2.json"];
+    // + load runtime type binding information
+    let runtime_binder: JsonRuntimeBinder = include_str!("xxx/binder.json").parse().expect("Load binder information");
 
     // + define output directory
     let output_dir = "src/sol";
 
-    gen_codes(&abi_json_files,output_dir).unwrap();
+    let mut contracts = BindingBuilder::new((RustGenerator::default(), runtime_binder))
+            .bind_hardhat(include_str!("xxx/Lock.json"))
+            .bind_hardhat(include_str!("xxx/Swap.json"))
+            .finalize()
+            .expect("Generate data");
+    
+    contracts.pretty().expect("Pretty");
+
+    contracts.save_to(output_dir).expect("Save generated");
 
     // other codes..
 }
