@@ -51,11 +51,11 @@ impl Generator for RustGenerator {
 
         let opts_type = self.to_runtime_type_token_stream(runtime_binder, "rt_opts")?;
 
-        let rlp_decodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_rlp_decodable")?;
+        let abi_decodable =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_decodable")?;
 
-        let rlp_encodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_rlp_encodable")?;
+        let abi_encodable =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_encodable")?;
 
         let receipt_type = self.to_runtime_type_token_stream(runtime_binder, "rt_receipt")?;
 
@@ -69,7 +69,7 @@ impl Generator for RustGenerator {
 
         let try_into_list = self.to_try_into_list(runtime_binder, &contructor.inputs)?;
 
-        let rlp_encode_list = self.to_rlp_encode_list(runtime_binder, &contructor.inputs)?;
+        let abi_encode_list = self.to_abi_encode_list(runtime_binder, &contructor.inputs)?;
 
         self.current_contract().add_fn_token_stream(quote! {
             pub async fn deploy_contract<C, #(#generic_list,)* Ops>(client: C, #(#param_list,)* ops: Ops) -> std::result::Result<Self,#error_type>
@@ -77,16 +77,16 @@ impl Generator for RustGenerator {
             Ops: TryInto<#opts_type>, Ops::Error: std::error::Error + Sync + Send + 'static,
             #(#where_clause_list,)*
             {
-                use #rlp_decodable;
-                use #rlp_encodable;
+                use #abi_decodable;
+                use #abi_encodable;
 
                 let mut client = client.try_into()?;
                 #(#try_into_list;)*
                 let ops = ops.try_into()?;
 
-                let mut outputs = client.rlp_encoder();
+                let mut outputs = client.abi_encoder();
 
-                #rlp_encode_list
+                #abi_encode_list
 
                 let address = client.deploy_contract(outputs,#deploy_bytes,ops).await?;
 
@@ -126,11 +126,11 @@ impl Generator for RustGenerator {
 
         let log_decoder = self.to_runtime_type_token_stream(runtime_binder, "rt_log_decoder")?;
 
-        let rlp_decodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_rlp_decodable")?;
+        let abi_decodable =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_decodable")?;
 
-        let rlp_encodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_rlp_encodable")?;
+        let abi_encodable =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_encodable")?;
 
         let event_ident = format_ident!(
             "{}{}",
@@ -170,11 +170,11 @@ impl Generator for RustGenerator {
 
         let error_type = self.to_runtime_type_token_stream(runtime_binder, "rt_error")?;
 
-        let rlp_decodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_rlp_decodable")?;
+        let abi_decodable =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_decodable")?;
 
-        let rlp_encodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_rlp_encodable")?;
+        let abi_encodable =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_encodable")?;
 
         let receipt_type = self.to_runtime_type_token_stream(runtime_binder, "rt_receipt")?;
 
@@ -186,11 +186,11 @@ impl Generator for RustGenerator {
 
         let try_into_list = self.to_try_into_list(runtime_binder, &function.inputs)?;
 
-        let rlp_encode_list = self.to_rlp_encode_list(runtime_binder, &function.inputs)?;
+        let abi_encode_list = self.to_abi_encode_list(runtime_binder, &function.inputs)?;
 
         let outputs_type = self.to_outputs_type(runtime_binder, &function.outputs)?;
 
-        let rlp_decode_list = self.to_rlp_decode_list(runtime_binder, &function.outputs)?;
+        let abi_decode_list = self.to_abi_decode_list(runtime_binder, &function.outputs)?;
 
         let fn_ident = format_ident!("{}", function.name.to_snake_case());
 
@@ -206,15 +206,15 @@ impl Generator for RustGenerator {
                 #(#where_clause_list,)*
                 {
 
-                    use #rlp_decodable;
-                    use #rlp_encodable;
+                    use #abi_decodable;
+                    use #abi_encodable;
 
                     #(#try_into_list;)*
                     let ops = ops.try_into()?;
 
-                    let mut outputs = self.0.rlp_encoder();
+                    let mut outputs = self.0.abi_encoder();
 
-                    #rlp_encode_list
+                    #abi_encode_list
 
                     self.0.send_raw_transaction(&self.1, outputs,ops).await
                 }
@@ -224,18 +224,18 @@ impl Generator for RustGenerator {
                 pub async fn #fn_ident<#(#generic_list,)* >(&self, #(#param_list,)*) -> std::result::Result<#outputs_type,#error_type>
                 where #(#where_clause_list,)*
                 {
-                    use #rlp_decodable;
-                    use #rlp_encodable;
+                    use #abi_decodable;
+                    use #abi_encodable;
 
                     #(#try_into_list;)*
 
-                    let mut outputs = self.0.rlp_encoder();
+                    let mut outputs = self.0.abi_encoder();
 
-                    #rlp_encode_list
+                    #abi_encode_list
 
                     let mut inputs = self.0.eth_call(&self.1, outputs).await?;
 
-                    Ok(#rlp_decode_list)
+                    Ok(#abi_decode_list)
                 }
             });
         }

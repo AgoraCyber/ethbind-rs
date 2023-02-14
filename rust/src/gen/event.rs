@@ -74,7 +74,7 @@ impl RustGenerator {
                     if param.indexed {
                         let index = base_index + index;
                         token_streams
-                            .push(quote!(let #var_ident = decoder.topic_rlp_decode(#index)?));
+                            .push(quote!(let #var_ident = decoder.topic_abi_decode(#index)?));
                     } else {
                         let token_stream = self.decode_from_data(runtime_binder, param)?;
 
@@ -93,7 +93,7 @@ impl RustGenerator {
         parameter: &Parameter,
     ) -> anyhow::Result<TokenStream> {
         if runtime_binder.to_runtime_type(&parameter.r#type)?.is_some() {
-            return Ok(quote!(decoder.data_decoder().rlp_decode()?));
+            return Ok(quote!(decoder.data_decoder().abi_decode()?));
         } else {
             let mut tuple_token_streams = vec![];
 
@@ -103,13 +103,13 @@ impl RustGenerator {
                 .expect("Tuple componenets is None")
                 .iter()
             {
-                tuple_token_streams.push(self.to_rlp_decode(runtime_binder, c)?);
+                tuple_token_streams.push(self.to_abi_decode(runtime_binder, c)?);
             }
 
             return Ok(quote! {{
-                decoder.data_decoder().rlp_start_decode_tuple()?;
+                decoder.data_decoder().abi_start_decode_tuple()?;
                 let result = (#(#tuple_token_streams,)*);
-                decoder.data_decoder().rlp_end_decode_tuple()?;
+                decoder.data_decoder().abi_end_decode_tuple()?;
                 result
             }});
         }

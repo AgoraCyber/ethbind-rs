@@ -7,13 +7,13 @@ mod mock {
     pub struct Client;
 
     impl Client {
-        pub fn rlp_encoder(&self) -> RlpEncoder {
-            RlpEncoder::default()
+        pub fn abi_encoder(&self) -> AbiEncoder {
+            AbiEncoder::default()
         }
 
         pub async fn deploy_contract(
             &self,
-            encoder: RlpEncoder,
+            encoder: AbiEncoder,
             deploy_data: &str,
             ops: Ops,
         ) -> anyhow::Result<Address> {
@@ -23,15 +23,15 @@ mod mock {
         pub async fn eth_call(
             &self,
             address: &Address,
-            encoder: RlpEncoder,
-        ) -> anyhow::Result<RlpDecoder> {
+            encoder: AbiEncoder,
+        ) -> anyhow::Result<AbiDecoder> {
             Ok(Default::default())
         }
 
         pub async fn send_raw_transaction(
             &self,
             address: &Address,
-            encoder: RlpEncoder,
+            encoder: AbiEncoder,
             ops: Ops,
         ) -> anyhow::Result<TransactionReceipt> {
             Ok(Default::default())
@@ -41,57 +41,57 @@ mod mock {
     #[derive(Debug, Default)]
     pub struct Address;
 
-    impl RlpDecodable for Address {
-        fn decode(decoder: &mut RlpDecoder) -> Self {
+    impl AbiDecodable for Address {
+        fn decode(decoder: &mut AbiDecoder) -> Self {
             Default::default()
         }
     }
 
-    impl RlpEncodable for Address {
-        fn encode(&self, encoder: &mut RlpEncoder) {}
+    impl AbiEncodable for Address {
+        fn encode(&self, encoder: &mut AbiEncoder) {}
     }
 
     #[derive(Debug, Default)]
     pub struct TransactionReceipt;
 
     impl TransactionReceipt {
-        pub fn encode(&self, encoder: &mut RlpEncoder) {}
+        pub fn encode(&self, encoder: &mut AbiEncoder) {}
 
-        pub fn decode(decoder: &mut RlpDecoder) -> Self {
+        pub fn decode(decoder: &mut AbiDecoder) -> Self {
             Default::default()
         }
     }
 
     #[derive(Debug, Default)]
-    pub struct RlpEncoder;
+    pub struct AbiEncoder;
 
-    impl RlpEncoder {
-        pub fn rlp_start_encode_tuple(&mut self) -> anyhow::Result<()> {
+    impl AbiEncoder {
+        pub fn abi_start_encode_tuple(&mut self) -> anyhow::Result<()> {
             Ok(())
         }
 
-        pub fn rlp_end_encode_tuple(&mut self) -> anyhow::Result<()> {
+        pub fn abi_end_encode_tuple(&mut self) -> anyhow::Result<()> {
             Ok(())
         }
 
-        pub fn rlp_encode<E: RlpEncodable>(&mut self, value: &E) -> anyhow::Result<()> {
+        pub fn abi_encode<E: AbiEncodable>(&mut self, value: &E) -> anyhow::Result<()> {
             Ok(())
         }
     }
 
     #[derive(Debug, Default)]
-    pub struct RlpDecoder;
+    pub struct AbiDecoder;
 
-    impl RlpDecoder {
-        pub fn rlp_start_decode_tuple(&mut self) -> anyhow::Result<()> {
+    impl AbiDecoder {
+        pub fn abi_start_decode_tuple(&mut self) -> anyhow::Result<()> {
             Ok(())
         }
 
-        pub fn rlp_end_decode_tuple(&mut self) -> anyhow::Result<()> {
+        pub fn abi_end_decode_tuple(&mut self) -> anyhow::Result<()> {
             Ok(())
         }
 
-        pub fn rlp_decode<D: RlpDecodable>(&mut self) -> anyhow::Result<D> {
+        pub fn abi_decode<D: AbiDecodable>(&mut self) -> anyhow::Result<D> {
             Ok(D::decode(self))
         }
     }
@@ -99,12 +99,12 @@ mod mock {
     #[derive(Debug, Default)]
     pub struct Int<const SIGN: bool, const LEN: usize>;
 
-    impl<const SIGN: bool, const LEN: usize> RlpEncodable for Int<SIGN, LEN> {
-        fn encode(&self, encoder: &mut RlpEncoder) {}
+    impl<const SIGN: bool, const LEN: usize> AbiEncodable for Int<SIGN, LEN> {
+        fn encode(&self, encoder: &mut AbiEncoder) {}
     }
 
-    impl<const SIGN: bool, const LEN: usize> RlpDecodable for Int<SIGN, LEN> {
-        fn decode(decoder: &mut RlpDecoder) -> Self {
+    impl<const SIGN: bool, const LEN: usize> AbiDecodable for Int<SIGN, LEN> {
+        fn decode(decoder: &mut AbiDecoder) -> Self {
             Default::default()
         }
     }
@@ -112,50 +112,50 @@ mod mock {
     #[derive(Debug, Default)]
     pub struct Fixed<const SIGN: bool, const M: usize, const N: usize>;
 
-    impl<const SIGN: bool, const M: usize, const N: usize> RlpEncodable for Fixed<SIGN, M, N> {
-        fn encode(&self, encoder: &mut RlpEncoder) {}
+    impl<const SIGN: bool, const M: usize, const N: usize> AbiEncodable for Fixed<SIGN, M, N> {
+        fn encode(&self, encoder: &mut AbiEncoder) {}
     }
 
-    impl<const SIGN: bool, const M: usize, const N: usize> RlpDecodable for Fixed<SIGN, M, N> {
-        fn decode(decoder: &mut RlpDecoder) -> Self {
+    impl<const SIGN: bool, const M: usize, const N: usize> AbiDecodable for Fixed<SIGN, M, N> {
+        fn decode(decoder: &mut AbiDecoder) -> Self {
             Default::default()
         }
     }
 
-    pub trait RlpEncodable {
-        fn encode(&self, encoder: &mut RlpEncoder);
+    pub trait AbiEncodable {
+        fn encode(&self, encoder: &mut AbiEncoder);
     }
 
-    pub trait RlpDecodable {
-        fn decode(decoder: &mut RlpDecoder) -> Self;
+    pub trait AbiDecodable {
+        fn decode(decoder: &mut AbiDecoder) -> Self;
     }
 
-    impl RlpEncodable for Vec<u8> {
-        fn encode(&self, encoder: &mut RlpEncoder) {}
+    impl AbiEncodable for Vec<u8> {
+        fn encode(&self, encoder: &mut AbiEncoder) {}
     }
 
-    impl RlpDecodable for Vec<u8> {
-        fn decode(decoder: &mut RlpDecoder) -> Self {
+    impl AbiDecodable for Vec<u8> {
+        fn decode(decoder: &mut AbiDecoder) -> Self {
             vec![]
         }
     }
 
-    impl<const LEN: usize> RlpEncodable for [u8; LEN] {
-        fn encode(&self, encoder: &mut RlpEncoder) {}
+    impl<const LEN: usize> AbiEncodable for [u8; LEN] {
+        fn encode(&self, encoder: &mut AbiEncoder) {}
     }
 
-    impl<const LEN: usize> RlpDecodable for [u8; LEN] {
-        fn decode(decoder: &mut RlpDecoder) -> Self {
+    impl<const LEN: usize> AbiDecodable for [u8; LEN] {
+        fn decode(decoder: &mut AbiDecoder) -> Self {
             [0; LEN]
         }
     }
 
-    impl RlpEncodable for bool {
-        fn encode(&self, encoder: &mut RlpEncoder) {}
+    impl AbiEncodable for bool {
+        fn encode(&self, encoder: &mut AbiEncoder) {}
     }
 
-    impl RlpDecodable for bool {
-        fn decode(decoder: &mut RlpDecoder) -> Self {
+    impl AbiDecodable for bool {
+        fn decode(decoder: &mut AbiDecoder) -> Self {
             false
         }
     }
@@ -165,14 +165,14 @@ mod mock {
     }
 
     #[derive(Default)]
-    pub struct LogDecoder(RlpDecoder);
+    pub struct LogDecoder(AbiDecoder);
 
     impl LogDecoder {
-        pub fn topic_rlp_decode<D: RlpDecodable>(&mut self, index: usize) -> anyhow::Result<D> {
-            Ok(D::decode(&mut RlpDecoder::default()))
+        pub fn topic_abi_decode<D: AbiDecodable>(&mut self, index: usize) -> anyhow::Result<D> {
+            Ok(D::decode(&mut AbiDecoder::default()))
         }
 
-        pub fn data_decoder(&mut self) -> &mut RlpDecoder {
+        pub fn data_decoder(&mut self) -> &mut AbiDecoder {
             &mut self.0
         }
     }
