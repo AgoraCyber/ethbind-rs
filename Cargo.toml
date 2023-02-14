@@ -1,8 +1,26 @@
+[package]
+name = "ethbind"
+license-file.workspace = true
+edition.workspace = true
+version.workspace = true
+description = "An ethereum contract binding code generation framework"
+documentation = "https://docs.rs/ethbind"
+
+
+[dependencies]
+ethbind-json = { workspace = true }
+ethbind-gen = { workspace = true }
+ethbind-rust = { workspace = true }
+ethbind-rust-macros = { workspace = true, optional = true }
+
+[features]
+macros = ["ethbind-rust-macros"]
+
 [workspace]
-members = ["json", "gen", "rust", "rust/macros"]
+members = ["json", "gen", "rust", "rust/macros", "./"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license-file = "LICENSE"
 keywords = ["ethereum", "contract", "codegen"]
