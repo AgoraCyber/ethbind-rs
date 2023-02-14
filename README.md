@@ -36,7 +36,7 @@ ethbind-rs = "^0.1"
 ```rust
 
 /// + use rust `gen_codes` fn
-use ethbind::gen::JsonRuntimeBinder;
+use ethbind::gen::{ JsonRuntimeBinder,SaveTo };
 use ethbind::rust::*;
 
 fn main() {
