@@ -20,7 +20,7 @@ macros = ["ethbind-rust-macros"]
 members = ["json", "gen", "rust", "rust/macros", "./"]
 
 [workspace.package]
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 license-file = "LICENSE"
 keywords = ["ethereum", "contract", "codegen"]
