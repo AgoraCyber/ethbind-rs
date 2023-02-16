@@ -162,7 +162,7 @@ fn default_indexed() -> bool {
 }
 
 /// Contract abi simple types enum
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum SimpleType {
     Address,
@@ -195,7 +195,7 @@ impl SimpleType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// fixed-point decimal number of M bits, 8 <= M <= 256, M % 8 == 0, and 0 < N <= 80, which denotes the value v as v / (10 ** N).
 pub struct FixedMN {
     pub m: usize,
@@ -269,7 +269,7 @@ impl<'de> Deserialize<'de> for FixedMN {
 }
 
 /// integer type of M bits, 0 < M <= 256, M % 8 == 0. e.g. uint32, uint8
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IntegerM {
     pub signed: bool,
     pub m: usize,
@@ -330,7 +330,7 @@ impl<'de> Deserialize<'de> for IntegerM {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// binary type of M bytes, 0 < M <= 32
 pub struct BytesM {
     pub m: usize,
@@ -378,7 +378,7 @@ impl<'de> Deserialize<'de> for BytesM {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Simple(SimpleType),
 
@@ -467,7 +467,7 @@ impl<'de> Deserialize<'de> for Type {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// a fixed-length array of M elements, M >= 0, of the given type.
 pub struct ArrayM {
     pub element: Type,
@@ -525,7 +525,7 @@ impl<'de> Deserialize<'de> for ArrayM {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// a variable-length array of elements of the given type
 pub struct Array {
     pub element: Type,
