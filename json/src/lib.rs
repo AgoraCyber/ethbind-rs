@@ -74,6 +74,40 @@ pub struct Function {
     pub state_mutability: StateMutability,
 }
 
+impl Function {
+    /// Only include inputs,e.g: withdraw(address)
+    pub fn signature(&self) -> String {
+        let tuple = Self::to_signature(&self.inputs);
+
+        format!("{}{}", self.name, tuple)
+    }
+
+    fn to_signature(params: &[Parameter]) -> String {
+        let mut pairs = vec![];
+
+        for param in params.iter() {
+            if let Some(components) = &param.components {
+                let element = Self::to_signature(components);
+                match &param.r#type {
+                    Type::Array(_) => {
+                        pairs.push(format!("{}[]", element));
+                    }
+                    Type::ArrayM(array_m) => {
+                        pairs.push(format!("{}[{}]", element, array_m.m));
+                    }
+                    _ => {
+                        pairs.push(format!("{}", element));
+                    }
+                }
+            } else {
+                pairs.push(format!("{}", param.r#type));
+            }
+        }
+
+        format!("({})", pairs.join(","))
+    }
+}
+
 fn default_parameters() -> Vec<Parameter> {
     vec![]
 }
@@ -88,6 +122,40 @@ pub struct Constructor {
     /// view (specified to not modify the blockchain state),
     /// nonpayable (function does not accept Ether - the default) and payable (function accepts Ether)
     pub state_mutability: StateMutability,
+}
+
+impl Constructor {
+    /// Only include inputs,e.g: withdraw(address)
+    pub fn signature(&self) -> String {
+        let tuple = Self::to_signature(&self.inputs);
+
+        format!("Constructor{}", tuple)
+    }
+
+    fn to_signature(params: &[Parameter]) -> String {
+        let mut pairs = vec![];
+
+        for param in params.iter() {
+            if let Some(components) = &param.components {
+                let element = Self::to_signature(components);
+                match &param.r#type {
+                    Type::Array(_) => {
+                        pairs.push(format!("{}[]", element));
+                    }
+                    Type::ArrayM(array_m) => {
+                        pairs.push(format!("{}[{}]", element, array_m.m));
+                    }
+                    _ => {
+                        pairs.push(format!("{}", element));
+                    }
+                }
+            } else {
+                pairs.push(format!("{}", param.r#type));
+            }
+        }
+
+        format!("({})", pairs.join(","))
+    }
 }
 
 /// A structure type to represent `receive function` abi
@@ -180,9 +248,18 @@ pub enum SimpleType {
 
 impl ToString for SimpleType {
     fn to_string(&self) -> String {
-        let data = serde_json::to_string(self).unwrap();
+        // to canonical type name
+        match self {
+            Self::Ufixed => "fixed128x18".into(),
+            Self::Fixed => "ufixed128x18".into(),
+            Self::Int => "int256".into(),
+            Self::Uint => "uint256".into(),
+            _ => {
+                let data = serde_json::to_string(self).unwrap();
 
-        data[1..data.len() - 1].to_string()
+                data[1..data.len() - 1].to_string()
+            }
+        }
     }
 }
 

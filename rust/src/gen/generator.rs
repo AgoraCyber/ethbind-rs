@@ -64,7 +64,7 @@ impl Generator for RustGenerator {
 
         let abi_encode_list = self.to_abi_encode_list(runtime_binder, &contructor.inputs)?;
 
-        let fn_signature = self.to_signature("contructor",&contructor.inputs)?;
+        let fn_signature = contructor.signature();
 
         self.current_contract().add_fn_token_stream(quote! {
             pub async fn deploy_with<C, #(#generic_list,)* Ops>(client: C, #(#param_list,)* ops: Ops) -> std::result::Result<Self,#error_type>
@@ -178,7 +178,7 @@ impl Generator for RustGenerator {
             _ => true,
         };
 
-        let fn_signature = self.to_signature(&function.name,&function.inputs)?;
+        let fn_signature = function.signature();
 
         if send_transaction {
             self.current_contract().add_fn_token_stream(quote! {
