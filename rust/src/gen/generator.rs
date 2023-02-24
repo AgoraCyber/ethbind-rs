@@ -5,11 +5,10 @@ use quote::{format_ident, quote};
 
 use crate::RustGenerator;
 
-#[allow(unused)]
 impl Generator for RustGenerator {
     fn begin<R: ethbind_gen::RuntimeBinder>(
         &mut self,
-        runtime_binder: &mut R,
+        _runtime_binder: &mut R,
         name: &str,
     ) -> anyhow::Result<()> {
         self.new_contract(name);
@@ -19,8 +18,8 @@ impl Generator for RustGenerator {
 
     fn end<R: ethbind_gen::RuntimeBinder>(
         &mut self,
-        runtime_binder: &mut R,
-        name: &str,
+        _runtime_binder: &mut R,
+        _name: &str,
     ) -> anyhow::Result<()> {
         Ok(())
     }
@@ -51,13 +50,7 @@ impl Generator for RustGenerator {
 
         let opts_type = self.to_runtime_type_token_stream(runtime_binder, "rt_opts")?;
 
-        let abi_decodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_decodable")?;
-
-        let abi_encodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_encodable")?;
-
-        let receipt_type = self.to_runtime_type_token_stream(runtime_binder, "rt_receipt")?;
+        let abi_encode = self.to_runtime_type_token_stream(runtime_binder, "rt_abi_serialize")?;
 
         let error_type = self.to_runtime_type_token_stream(runtime_binder, "rt_error")?;
 
@@ -77,16 +70,11 @@ impl Generator for RustGenerator {
             Ops: TryInto<#opts_type>, Ops::Error: std::error::Error + Sync + Send + 'static,
             #(#where_clause_list,)*
             {
-                use #abi_decodable;
-                use #abi_encodable;
-
                 let mut client = client.try_into()?;
                 #(#try_into_list;)*
                 let ops = ops.try_into()?;
 
-                let mut outputs = client.abi_encoder();
-
-                #abi_encode_list
+                let outputs = #abi_encode(#abi_encode_list)?;
 
                 let address = client.deploy_contract(outputs,#deploy_bytes,ops).await?;
 
@@ -99,8 +87,8 @@ impl Generator for RustGenerator {
 
     fn generate_error<R: ethbind_gen::RuntimeBinder>(
         &mut self,
-        runtime_binder: &mut R,
-        error: &Error,
+        _runtime_binder: &mut R,
+        _error: &Error,
     ) -> anyhow::Result<()> {
         // Skip generate error binding code
         Ok(())
@@ -115,22 +103,11 @@ impl Generator for RustGenerator {
 
         let event_field_list = self.to_event_field_list(runtime_binder, &event.inputs)?;
 
-        let event_init_list = self.to_event_init_list(runtime_binder, &event.inputs)?;
+        let serialize_derive_macro =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_serialize_derive")?;
 
-        let decode_token_streams = self.to_event_docode_token_streams(runtime_binder, event)?;
-
-        let error_type = self.to_runtime_type_token_stream(runtime_binder, "rt_error")?;
-
-        let log_decodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_log_decodable")?;
-
-        let log_decoder = self.to_runtime_type_token_stream(runtime_binder, "rt_log_decoder")?;
-
-        let abi_decodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_decodable")?;
-
-        let abi_encodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_encodable")?;
+        let deserialize_derive_macro =
+            self.to_runtime_type_token_stream(runtime_binder, "rt_deserialize_derive")?;
 
         let event_ident = format_ident!(
             "{}{}",
@@ -138,21 +115,10 @@ impl Generator for RustGenerator {
             event.name.to_upper_camel_case()
         );
 
-        let error_type = self.to_runtime_type_token_stream(runtime_binder, "rt_error")?;
-
         self.current_contract().add_event_token_stream(quote! {
+            #[derive(#serialize_derive_macro,#deserialize_derive_macro)]
             pub struct #event_ident {
                 #(#event_field_list,)*
-            }
-
-            impl #log_decodable for #event_ident {
-                fn decode(decoder: &mut #log_decoder) -> std::result::Result<Self,#error_type> {
-                    #decode_token_streams
-
-                    Ok(Self {
-                        #(#event_init_list,)*
-                    })
-                }
             }
         });
 
@@ -170,11 +136,9 @@ impl Generator for RustGenerator {
 
         let error_type = self.to_runtime_type_token_stream(runtime_binder, "rt_error")?;
 
-        let abi_decodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_decodable")?;
+        let abi_decode = self.to_runtime_type_token_stream(runtime_binder, "rt_abi_deserialize")?;
 
-        let abi_encodable =
-            self.to_runtime_type_token_stream(runtime_binder, "rt_abi_encodable")?;
+        let abi_encode = self.to_runtime_type_token_stream(runtime_binder, "rt_abi_serialize")?;
 
         let receipt_type = self.to_runtime_type_token_stream(runtime_binder, "rt_receipt")?;
 
@@ -190,8 +154,6 @@ impl Generator for RustGenerator {
 
         let outputs_type = self.to_outputs_type(runtime_binder, &function.outputs)?;
 
-        let abi_decode_list = self.to_abi_decode_list(runtime_binder, &function.outputs)?;
-
         let fn_ident = format_ident!("{}", function.name.to_snake_case());
 
         let send_transaction = match function.state_mutability {
@@ -206,15 +168,10 @@ impl Generator for RustGenerator {
                 #(#where_clause_list,)*
                 {
 
-                    use #abi_decodable;
-                    use #abi_encodable;
-
                     #(#try_into_list;)*
                     let ops = ops.try_into()?;
 
-                    let mut outputs = self.0.abi_encoder();
-
-                    #abi_encode_list
+                    let outputs = #abi_encode(#abi_encode_list)?;
 
                     self.0.send_raw_transaction(&self.1, outputs,ops).await
                 }
@@ -224,18 +181,13 @@ impl Generator for RustGenerator {
                 pub async fn #fn_ident<#(#generic_list,)* >(&self, #(#param_list,)*) -> std::result::Result<#outputs_type,#error_type>
                 where #(#where_clause_list,)*
                 {
-                    use #abi_decodable;
-                    use #abi_encodable;
-
                     #(#try_into_list;)*
 
-                    let mut outputs = self.0.abi_encoder();
+                    let outputs = #abi_encode(#abi_encode_list)?;
 
-                    #abi_encode_list
+                    let inputs = self.0.eth_call(&self.1, outputs).await?;
 
-                    let mut inputs = self.0.eth_call(&self.1, outputs).await?;
-
-                    Ok(#abi_decode_list)
+                    #abi_decode(inputs)
                 }
             });
         }

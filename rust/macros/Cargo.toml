@@ -20,3 +20,4 @@ ethbind-rust = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+serde = { workspace = true }

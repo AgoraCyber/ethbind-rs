@@ -89,60 +89,24 @@ impl RustGenerator {
     /// Convert fn param list to rlp encode statement
     pub(crate) fn to_abi_encode_list<R: ethbind_gen::RuntimeBinder>(
         &self,
-        runtime_binder: &mut R,
+        _runtime_binder: &mut R,
         params: &[Parameter],
     ) -> anyhow::Result<TokenStream> {
         let mut token_streams = vec![];
 
-        static NULL: Vec<Parameter> = vec![];
-
         for (index, param) in params.iter().enumerate() {
-            let var_name = if param.name != "" {
-                format!("{}", param.name.to_snake_case())
+            let param_ident = if param.name != "" {
+                format_ident!("{}", param.name.to_snake_case())
             } else {
-                format!("p{}", index)
+                format_ident!("p{}", index)
             };
 
-            let token_stream = self.to_abi_encode(
-                runtime_binder,
-                &var_name,
-                &param.r#type,
-                param.components.as_ref().unwrap_or(&NULL).as_slice(),
-            )?;
-
-            token_streams.push(quote!(#token_stream));
+            token_streams.push(quote!(#param_ident));
         }
 
         Ok(quote! {
-            outputs.abi_start_encode_tuple()?;
-            #(#token_streams)*
-            outputs.abi_end_encode_tuple()?;
+            (#(#token_streams,)*)
         })
-    }
-
-    pub(crate) fn to_abi_decode_list<R: ethbind_gen::RuntimeBinder>(
-        &self,
-        runtime_binder: &mut R,
-        params: &[Parameter],
-    ) -> anyhow::Result<TokenStream> {
-        let mut token_streams = vec![];
-
-        for (_, param) in params.iter().enumerate() {
-            let token_stream = self.to_abi_decode(runtime_binder, param)?;
-
-            token_streams.push(quote!(#token_stream));
-        }
-
-        if params.len() <= 1 {
-            return Ok(quote! (#(#token_streams)*));
-        } else {
-            return Ok(quote! {{
-                inputs.abi_start_decode_tuple()?;
-                let result = (#(#token_streams,)*);
-                inputs.abi_end_decode_tuple()?;
-                result
-            }});
-        }
     }
 
     #[allow(unused)]
@@ -223,34 +187,6 @@ impl RustGenerator {
                 #(#tuple_token_streams)*
                 outputs.abi_end_encode_tuple()?;
             });
-        }
-    }
-
-    pub(crate) fn to_abi_decode<R: ethbind_gen::RuntimeBinder>(
-        &self,
-        runtime_binder: &mut R,
-        parameter: &Parameter,
-    ) -> anyhow::Result<TokenStream> {
-        if runtime_binder.to_runtime_type(&parameter.r#type)?.is_some() {
-            return Ok(quote!(inputs.abi_decode()?));
-        } else {
-            let mut tuple_token_streams = vec![];
-
-            for c in parameter
-                .components
-                .as_ref()
-                .expect("Tuple componenets is None")
-                .iter()
-            {
-                tuple_token_streams.push(self.to_abi_decode(runtime_binder, c)?);
-            }
-
-            return Ok(quote! {{
-                inputs.abi_start_decode_tuple()?;
-                let result = (#(#tuple_token_streams,)*);
-                inputs.abi_end_decode_tuple()?;
-                result
-            }});
         }
     }
 }
