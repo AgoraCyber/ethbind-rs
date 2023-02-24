@@ -64,6 +64,8 @@ impl Generator for RustGenerator {
 
         let abi_encode_list = self.to_abi_encode_list(runtime_binder, &contructor.inputs)?;
 
+        let contract_name = self.current_contract().contract_name.clone();
+
         self.current_contract().add_fn_token_stream(quote! {
             pub async fn deploy_contract<C, #(#generic_list,)* Ops>(client: C, #(#param_list,)* ops: Ops) -> std::result::Result<Self,#error_type>
             where C: TryInto<#client_type>, C::Error: std::error::Error + Sync + Send + 'static,
@@ -74,11 +76,11 @@ impl Generator for RustGenerator {
                 #(#try_into_list;)*
                 let ops = ops.try_into()?;
 
-                let outputs = #abi_encode(#abi_encode_list)?;
+                let outputs = #abi_encode(&#abi_encode_list)?;
 
-                let address = client.deploy_contract(outputs,#deploy_bytes,ops).await?;
+                let address = client.deploy_contract(#contract_name, outputs,#deploy_bytes,ops).await?;
 
-                Ok(Self(client,address))
+                Ok(Self{ client, address })
             }
         });
 
@@ -167,13 +169,12 @@ impl Generator for RustGenerator {
                 where Ops: TryInto<#opts_type>, Ops::Error: std::error::Error + Sync + Send + 'static,
                 #(#where_clause_list,)*
                 {
-
                     #(#try_into_list;)*
                     let ops = ops.try_into()?;
 
-                    let outputs = #abi_encode(#abi_encode_list)?;
+                    let outputs = #abi_encode(&#abi_encode_list)?;
 
-                    self.0.send_raw_transaction(&self.1, outputs,ops).await
+                    self.client.send_raw_transaction(stringify!(#fn_ident), &self.address, outputs,ops).await
                 }
             });
         } else {
@@ -183,11 +184,11 @@ impl Generator for RustGenerator {
                 {
                     #(#try_into_list;)*
 
-                    let outputs = #abi_encode(#abi_encode_list)?;
+                    let outputs = #abi_encode(&#abi_encode_list)?;
 
-                    let inputs = self.0.eth_call(&self.1, outputs).await?;
+                    let inputs = self.client.eth_call(stringify!(#fn_ident), &self.address, outputs).await?;
 
-                    #abi_decode(inputs)
+                    Ok(#abi_decode(inputs)?)
                 }
             });
         }

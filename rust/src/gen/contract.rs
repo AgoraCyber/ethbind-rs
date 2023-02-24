@@ -40,7 +40,10 @@ impl ContractGenerator {
         let ident = format_ident!("{}", &self.contract_name.to_upper_camel_case());
 
         let token_stream = quote! {
-            pub struct #ident(#rt_client,#rt_address);
+            pub struct #ident{
+                pub client: #rt_client,
+                pub address: #rt_address,
+            }
 
             impl #ident {
                 #(#fn_token_streams)*

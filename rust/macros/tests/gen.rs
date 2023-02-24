@@ -10,6 +10,7 @@ mod mock {
     impl Client {
         pub async fn deploy_contract(
             &self,
+            contract_name: &str,
             encoder: String,
             deploy_data: &str,
             ops: Ops,
@@ -17,12 +18,18 @@ mod mock {
             Ok(Default::default())
         }
 
-        pub async fn eth_call(&self, address: &Address, encoder: String) -> anyhow::Result<String> {
+        pub async fn eth_call(
+            &self,
+            method_name: &str,
+            address: &Address,
+            encoder: String,
+        ) -> anyhow::Result<String> {
             Ok(Default::default())
         }
 
         pub async fn send_raw_transaction(
             &self,
+            method_name: &str,
             address: &Address,
             encoder: String,
             ops: Ops,
