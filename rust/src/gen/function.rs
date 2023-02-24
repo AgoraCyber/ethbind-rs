@@ -29,6 +29,38 @@ impl RustGenerator {
         Ok(token_streams)
     }
 
+    /// Convert `params` to generic list
+    pub(crate) fn to_signature(&self, name: &str, params: &[Parameter]) -> anyhow::Result<String> {
+        let tuple = Self::to_signature_tuple(params)?;
+
+        Ok(format!("{}{}", name, tuple))
+    }
+
+    fn to_signature_tuple(params: &[Parameter]) -> anyhow::Result<String> {
+        let mut pairs = vec![];
+
+        for param in params.iter() {
+            if let Some(components) = &param.components {
+                let element = Self::to_signature_tuple(components)?;
+                match &param.r#type {
+                    Type::Array(_) => {
+                        pairs.push(format!("{}[]", element));
+                    }
+                    Type::ArrayM(array_m) => {
+                        pairs.push(format!("{}[{}]", element, array_m.m));
+                    }
+                    _ => {
+                        pairs.push(format!("{}", element));
+                    }
+                }
+            } else {
+                pairs.push(format!("{}", param.r#type));
+            }
+        }
+
+        Ok(format!("({})", pairs.join(",")))
+    }
+
     /// Convert fn param list to fn generic list
     pub(crate) fn to_generic_list<R: ethbind_gen::RuntimeBinder>(
         &self,

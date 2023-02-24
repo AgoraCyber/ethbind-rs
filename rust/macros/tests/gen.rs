@@ -3,6 +3,8 @@ use ethbind_rust_macros::contract;
 #[allow(unused)]
 mod mock {
     pub use serde::{Deserialize, Serialize};
+
+    #[derive(Default)]
     pub struct Ops;
 
     pub struct Client;
