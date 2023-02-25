@@ -131,13 +131,21 @@ impl Generator for RustGenerator {
             event.name.to_upper_camel_case()
         );
 
+        let abi_json = serde_json::to_string(event)?;
+
         self.current_contract().add_event_token_stream(quote! {
             #[derive(#serialize_derive_macro,#deserialize_derive_macro)]
             pub struct #event_ident {
                 #(#event_field_list,)*
             }
-        });
 
+            impl #event_ident {
+                pub fn abi_json() -> &'static str {
+                    #abi_json
+                }
+            }
+        });
+    
         Ok(())
     }
 
@@ -183,8 +191,7 @@ impl Generator for RustGenerator {
         if send_transaction {
             self.current_contract().add_fn_token_stream(quote! {
                 pub async fn #fn_with_ident<Ops, #(#generic_list,)* >(&self, #(#param_list,)* ops: Ops) -> std::result::Result<#receipt_type,#error_type>
-                where Ops: TryInto<#opts_type>, Ops::Error: std::error::Error + Sync + Send + 'static,
-                #(#where_clause_list,)*
+                where Ops: TryInto<#opts_type>, Ops::Error: std::error::Error + Sync + Send + 'static, #(#where_clause_list,)*
                 {
                     #(#try_into_list;)*
                     let ops = ops.try_into()?;
